@@ -159,7 +159,10 @@ with st.expander("Click here to change a slot or swap with another member", expa
             for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
                 presenter = str(row.get(slot, "")).strip()
                 if presenter and presenter != "nan" and presenter != "None":
-                    label = f"{row['Date']} - {slot}: {presenter}"
+                    # Add time limits to the dropdown labels
+                    slot_display = "Slot 1 (30 min)" if slot == "Slot 1" else f"{slot} (5 min)"
+                    label = f"{row['Date']} - {slot_display}: {presenter}"
+                    
                     slot_entries.append({"label": label, "idx": idx, "slot": slot, "person": presenter, "date": row['Date']})
                     scheduled_people.append(presenter)
     
@@ -217,8 +220,10 @@ st.subheader("📋 Current Schedule")
 # 1. Create a display copy so we don't alter the background swapping logic
 display_df = df.copy()
 
-# 2. Format the Week column to be a clean integer (removes the .0000)
+# 2. Format columns (clean integers for Week, remove "nan" from Notes)
 display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
+if "Notes" in display_df.columns:
+    display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
 
 # 3. Rename the columns directly in the display dataframe
 display_df = display_df.rename(columns={
