@@ -4,8 +4,13 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import os
 
-df = pd.read_csv("schedule.csv")
+# Extract your Google Sheet ID from its URL and place it here
+SHEET_ID = "YOUR_SHEET_ID_HERE" 
+url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+
+df = pd.read_csv(url)
 emails = pd.read_csv("members.csv").set_index("Name")["Email"].to_dict()
+# ... (keep the rest of the reminder.py script exactly the same)
 
 # Calculate upcoming Monday
 today = datetime.now()
