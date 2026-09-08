@@ -26,7 +26,7 @@ PRESENTERS = {
     "Juan": ["Ming", "Konrad", "Leo"],
     "Sandra": ["Remi", "Stan", "Lisi"],
     "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
-    "Febe": ["Sofie", "XiaoFei", "Wies", "Maud", "Angela"],
+    "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
     "Lotte": ["Lotte"],
