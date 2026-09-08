@@ -34,7 +34,7 @@ PRESENTERS = {
 }
 
 TECHNICIANS = {
-    "Yvette": ["Fabrizio", "Laura", "Sanne", "Katarina", "Li", "Babet", "Megan"],
+    "Yvette": ["Laura", "Katarina", "Megan"],
     "Juan": ["Marlous"],
     "Sandra": ["Alba"],
     "Joke": ["Joeke"],
