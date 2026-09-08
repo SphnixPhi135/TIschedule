@@ -208,6 +208,20 @@ with st.expander("Click here to change a slot or swap with another member", expa
 # --- 4. STYLED TABLE ---
 st.subheader("📋 Current Schedule")
 
+# 1. Create a display copy so we don't alter the background swapping logic
+display_df = df.copy()
+
+# 2. Format the Week column to be a clean integer (removes the .0000)
+display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
+
+# 3. Rename the columns directly in the display dataframe
+display_df = display_df.rename(columns={
+    "Slot 1": "Slot 1 (30 min)",
+    "Slot 2": "Slot 2 (5 min)",
+    "Slot 3": "Slot 3 (5 min)",
+    "Slot 4": "Slot 4 (5 min)"
+})
+
 def style_cells(val):
     pi = MEMBER_PI_MAP.get(str(val).strip())
     if pi:
@@ -216,20 +230,11 @@ def style_cells(val):
         return f"background-color: {bg}; color: {text}; font-weight: 500;"
     return ""
 
+# 4. Apply styles pointing to the newly renamed columns
 try:
-    styled_df = df.style.map(style_cells, subset=["Slot 1", "Slot 2", "Slot 3", "Slot 4"])
+    styled_df = display_df.style.map(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 except AttributeError:
-    styled_df = df.style.applymap(style_cells, subset=["Slot 1", "Slot 2", "Slot 3", "Slot 4"])
+    styled_df = display_df.style.applymap(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 
-st.dataframe(
-    styled_df, 
-    hide_index=True, 
-    use_container_width=True,
-    column_config={
-        "Week": st.column_config.NumberColumn("Week", format="%d"),
-        "Slot 1": "Slot 1 (30 min)",
-        "Slot 2": "Slot 2 (5 min)",
-        "Slot 3": "Slot 3 (5 min)",
-        "Slot 4": "Slot 4 (5 min)"
-    }
-)
+# 5. Use st.table() to create a fully locked, unmovable display
+st.table(styled_df)
