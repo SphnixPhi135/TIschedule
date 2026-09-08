@@ -4,20 +4,20 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import os
 
-# Extract your Google Sheet ID from its URL and place it here
-SHEET_ID = "YOUR_SHEET_ID_HERE" 
+# Your specific Google Sheet ID
+SHEET_ID = "1MkHviO7CsmPR65rpV3zT0wSRbVVomsc9j9vlmzc9JdE" 
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
 
+# Fetch the live schedule and the email list
 df = pd.read_csv(url)
 emails = pd.read_csv("members.csv").set_index("Name")["Email"].to_dict()
-# ... (keep the rest of the reminder.py script exactly the same)
 
-# Calculate upcoming Monday
+# Calculate the date string for the upcoming Monday
 today = datetime.now()
 next_monday = today + timedelta(days=(7 - today.weekday() + 0) % 7)
-monday_str = next_monday.strftime("%d-%b").lstrip("0") # e.g., "14-Sep"
+monday_str = next_monday.strftime("%d-%b").lstrip("0") # Formats to match "14-Sep" etc.
 
-# Find presenters for next Monday
+# Find presenters scheduled for that specific Monday
 presenters = []
 for idx, row in df.iterrows():
     if row["Date"] == monday_str:
@@ -25,6 +25,7 @@ for idx, row in df.iterrows():
             if pd.notna(row[slot]) and str(row[slot]).strip() != "":
                 presenters.append(str(row[slot]).strip())
 
+# If there are presenters, prepare and send the email
 if presenters:
     recipient_emails = [emails.get(p) for p in presenters if emails.get(p)]
     
@@ -37,7 +38,10 @@ if presenters:
         msg['From'] = sender
         msg['To'] = ", ".join(recipient_emails)
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender, password)
-            server.send_message(msg)
-        print(f"Sent reminder to {recipient_emails}")
+        try:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(sender, password)
+                server.send_message(msg)
+            print(f"Successfully sent reminder to {recipient_emails}")
+        except Exception as e:
+            print(f"Failed to send email: {e}")
