@@ -1,0 +1,28 @@
+name: Send Friday Reminders
+
+on:
+  schedule:
+    # Runs every Friday at 09:00 UTC
+    - cron: '0 9 * * 5'
+  workflow_dispatch: # Allows you to run it manually to test
+
+jobs:
+  send_email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Run reminder script
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python reminder.py
