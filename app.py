@@ -22,7 +22,7 @@ PI_COLORS = {
 }
 
 PRESENTERS = {
-    "Yvette": ["Shabnam", "Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa", "Ken"],
+    "Yvette": ["Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa", "Ken"],
     "Juan": ["Maartje", "Ming", "Konrad", "Leo"],
     "Sandra": ["Remi", "Stan", "Lisi"],
     "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
