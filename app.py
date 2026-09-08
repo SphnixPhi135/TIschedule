@@ -1,3 +1,4 @@
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 import smtplib
@@ -153,17 +154,32 @@ with st.expander("Click here to change a slot or swap with another member", expa
     slot_entries = []
     scheduled_people = []
     
+    current_date = datetime.now().date()
+    current_year = current_date.year
+    
     # 1. Identify everyone currently on the schedule
     for idx, row in df.iterrows():
         if pd.notna(row.get('Date')):
+            date_str = str(row.get('Date', "")).strip()
+            
+            # --- DATE LOCK LOGIC ---
+            try:
+                # Combine the date string with the current year and parse it
+                row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
+                if row_date < current_date:
+                    continue  # Skip this week completely if the date has passed
+            except ValueError:
+                pass # If the date is typed incorrectly in the sheet, ignore the lock
+            # -----------------------
+            
             for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
                 presenter = str(row.get(slot, "")).strip()
                 if presenter and presenter != "nan" and presenter != "None":
                     # Add time limits to the dropdown labels
                     slot_display = "Slot 1 (30 min)" if slot == "Slot 1" else f"{slot} (5 min)"
-                    label = f"{row['Date']} - {slot_display}: {presenter}"
+                    label = f"{date_str} - {slot_display}: {presenter}"
                     
-                    slot_entries.append({"label": label, "idx": idx, "slot": slot, "person": presenter, "date": row['Date']})
+                    slot_entries.append({"label": label, "idx": idx, "slot": slot, "person": presenter, "date": date_str})
                     scheduled_people.append(presenter)
     
     # 2. Build the lists for the dropdown menus
@@ -174,7 +190,7 @@ with st.expander("Click here to change a slot or swap with another member", expa
     for members in PRESENTERS.values():
         all_presenters.extend(members)
         
-    # Filter presenters who are not currently scheduled
+    # Filter presenters who are not currently scheduled for UPCOMING slots
     unscheduled_presenters = [m for m in all_presenters if m not in scheduled_people]
     unscheduled_labels = [f"Unscheduled: {m}" for m in sorted(unscheduled_presenters)]
     
@@ -212,7 +228,7 @@ with st.expander("Click here to change a slot or swap with another member", expa
                     st.success(f"Swapped **{item_a['person']}** and **{item_b['person']}** successfully! Email sent.")
                     st.rerun()
     else:
-        st.info("No schedule data available.")
+        st.info("No upcoming schedule data available to swap.")
 
 # --- 4. STYLED TABLE ---
 st.subheader("📋 Current Schedule")
