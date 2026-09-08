@@ -205,6 +205,10 @@ st.dataframe(
     hide_index=True, 
     use_container_width=True,
     column_config={
-        "Week": st.column_config.NumberColumn("Week", format="%d")
+        "Week": st.column_config.NumberColumn("Week", format="%d"),
+        "Slot 1": "Slot 1 (30 min)",
+        "Slot 2": "Slot 2 (5 min)",
+        "Slot 3": "Slot 3 (5 min)",
+        "Slot 4": "Slot 4 (5 min)"
     }
 )
