@@ -165,11 +165,17 @@ with st.expander("Click here to change a slot or swap with another member", expa
     
     # 2. Build the lists for the dropdown menus
     entry_labels = [e["label"] for e in slot_entries]
-    all_members = list(MEMBER_PI_MAP.keys())
-    unscheduled_members = [m for m in all_members if m not in scheduled_people]
-    unscheduled_labels = [f"Unscheduled: {m}" for m in sorted(unscheduled_members)]
     
-    # Target options include both existing slots AND unscheduled members
+    # Compile a list of strictly Presenters (ignore Technicians)
+    all_presenters = []
+    for members in PRESENTERS.values():
+        all_presenters.extend(members)
+        
+    # Filter presenters who are not currently scheduled
+    unscheduled_presenters = [m for m in all_presenters if m not in scheduled_people]
+    unscheduled_labels = [f"Unscheduled: {m}" for m in sorted(unscheduled_presenters)]
+    
+    # Target options include existing slots AND unscheduled presenters only
     target_options = entry_labels + unscheduled_labels
     
     if entry_labels:
