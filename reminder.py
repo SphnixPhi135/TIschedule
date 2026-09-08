@@ -27,7 +27,7 @@ if presenters:
         sender = os.environ.get("SMTP_USER")
         password = os.environ.get("SMTP_PASSWORD")
         
-        msg = MIMEText(f"Hello,\n\nThis is a friendly reminder that you are scheduled to present at the group meeting this coming Monday ({monday_str}).\n\nBest,\nSchedule Bot")
+        msg = MIMEText(f"Hello,\n\nThis is a friendly reminder that you are scheduled to present at the group meeting this coming Monday ({monday_str}).\n\nBest,\nVinicio")
         msg['Subject'] = 'Upcoming Presentation Reminder'
         msg['From'] = sender
         msg['To'] = ", ".join(recipient_emails)
