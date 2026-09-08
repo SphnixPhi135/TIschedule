@@ -200,4 +200,11 @@ try:
 except AttributeError:
     styled_df = df.style.applymap(style_cells, subset=["Slot 1", "Slot 2", "Slot 3", "Slot 4"])
 
-st.dataframe(styled_df, hide_index=True, use_container_width=True)
+st.dataframe(
+    styled_df, 
+    hide_index=True, 
+    use_container_width=True,
+    column_config={
+        "Week": st.column_config.NumberColumn("Week", format="%d")
+    }
+)
