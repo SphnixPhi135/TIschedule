@@ -8,7 +8,7 @@ st.set_page_config(page_title="Lab Meeting Schedule", layout="wide")
 DATA_FILE = "schedule.csv"
 MEMBERS_FILE = "members.csv"
 
-# 1. COLOR MAPPINGS
+# 1. COLOR MAPPINGS & LAB ROSTER
 PI_COLORS = {
     "Yvette": {"bg": "#5B9BD5", "text": "white"},
     "Juan": {"bg": "#C00000", "text": "white"},
@@ -17,30 +17,40 @@ PI_COLORS = {
     "Febe": {"bg": "#70AD47", "text": "white"},
     "Jan": {"bg": "#996600", "text": "white"},
     "Tanja": {"bg": "#00B0F0", "text": "black"},
-    "Lotte": {"bg": "#7030A0", "text": "white"} 
+    "Lotte": {"bg": "#7030A0", "text": "white"},
+    "Marjolein": {"bg": "#D81B60", "text": "white"}  # New Group
 }
 
-MEMBER_PI_MAP = {
-    # Yvette
-    "Shabnam": "Yvette", "Sofia": "Yvette", "Georgia": "Yvette", "Emma": "Yvette", "Vinicio": "Yvette", 
-    "Roos": "Yvette", "Mostafa": "Yvette", "Ken": "Yvette", "Fabrizio": "Yvette", "Laura": "Yvette", 
-    "Sanne": "Yvette", "Katarina": "Yvette", "Li": "Yvette", "Babet": "Yvette", "Megan": "Yvette",
-    # Juan
-    "Maartje": "Juan", "Ming": "Juan", "Konrad": "Juan", "Leo": "Juan", "Marlous": "Juan",
-    # Sandra
-    "Remi": "Sandra", "Stan": "Sandra", "Lisi": "Sandra", "Alba": "Sandra",
-    # Joke
-    "Hendrik": "Joke", "Negisa": "Joke", "Noah": "Joke", "Caroline": "Joke", "Joeke": "Joke",
-    # Febe
-    "Sofie": "Febe", "XiaoFei": "Febe", "Wies": "Febe", "Maud": "Febe", "Angela": "Febe", 
-    "Susan": "Febe", "Meggy": "Febe",
-    # Jan
-    "Niamh": "Jan", "Daan": "Jan",
-    # Tanja
-    "Nora": "Tanja", "Linda": "Tanja",
-    # Lotte (from schedule visual)
-    "Lotte": "Lotte"
+PRESENTERS = {
+    "Yvette": ["Shabnam", "Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa", "Ken"],
+    "Juan": ["Maartje", "Ming", "Konrad", "Leo"],
+    "Sandra": ["Remi", "Stan", "Lisi"],
+    "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
+    "Febe": ["Sofie", "XiaoFei", "Wies", "Maud", "Angela"],
+    "Jan": ["Niamh"],
+    "Tanja": ["Nora"],
+    "Lotte": ["Lotte"],
+    "Marjolein": ["Irene", "Leoni", "Janneke"]
 }
+
+TECHNICIANS = {
+    "Yvette": ["Fabrizio", "Laura", "Sanne", "Katarina", "Li", "Babet", "Megan"],
+    "Juan": ["Marlous"],
+    "Sandra": ["Alba"],
+    "Joke": ["Joeke"],
+    "Febe": ["Susan", "Meggy"],
+    "Jan": ["Daan"],
+    "Tanja": ["Linda"],
+    "Lotte": [],
+    "Marjolein": ["Kiki", "Richard"]
+}
+
+# Dynamically merge lists for the table styling function
+MEMBER_PI_MAP = {}
+for pi, members in PRESENTERS.items():
+    for m in members: MEMBER_PI_MAP[m] = pi
+for pi, members in TECHNICIANS.items():
+    for m in members: MEMBER_PI_MAP[m] = pi
 
 @st.cache_data
 def load_emails():
@@ -57,7 +67,7 @@ def send_swap_email(person_a, person_b, date_a, date_b):
         sender = st.secrets["SMTP_USER"]
         password = st.secrets["SMTP_PASSWORD"]
     except KeyError:
-        st.warning("Email credentials not configured in Streamlit Secrets. Swap complete, but email skipped.")
+        st.warning("Email credentials not configured. Swap complete, but email skipped.")
         return
 
     email_a = EMAIL_DICT.get(person_a)
@@ -93,16 +103,34 @@ df = st.session_state.df
 
 st.title("📅 Group Meeting Presentation Schedule")
 
-# --- 2. PI COLOR LEGEND ---
-st.subheader("🔬 PI Group Legend")
-legend_cols = st.columns(len(PI_COLORS))
-for col, (pi, colors) in zip(legend_cols, PI_COLORS.items()):
-    col.markdown(
-        f'<div style="background-color: {colors["bg"]}; color: {colors["text"]}; '
-        f'padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 20px;">'
-        f'{pi}</div>',
-        unsafe_allow_html=True
-    )
+# --- 2. PI LEGEND & ROSTER ---
+st.subheader("🔬 PI Groups & Lab Roster")
+with st.expander("View Color Legend, Presenters, and Technicians", expanded=False):
+    pi_names = list(PI_COLORS.keys())
+    # Create an organized grid of 3 columns
+    for i in range(0, len(pi_names), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(pi_names):
+                pi = pi_names[i + j]
+                colors = PI_COLORS[pi]
+                with cols[j]:
+                    st.markdown(
+                        f'<div style="background-color: {colors["bg"]}; color: {colors["text"]}; '
+                        f'padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 10px;">'
+                        f'{pi}</div>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    pres = PRESENTERS.get(pi, [])
+                    tech = TECHNICIANS.get(pi, [])
+                    
+                    if pres:
+                        st.markdown("**Presenters:**\n" + "\n".join([f"- {p}" for p in pres]))
+                    if tech:
+                        st.markdown("**Technicians:**\n" + "\n".join([f"- {t}" for t in tech]))
+                    
+                    st.write("") # Add some vertical spacing
 
 # --- 3. SWAP TOOL ---
 st.subheader("🔄 Swap Presentation Slots")
@@ -146,7 +174,6 @@ def style_cells(val):
         return f"background-color: {bg}; color: {text}; font-weight: 500;"
     return ""
 
-# Apply styles using .map (for newer pandas) or .applymap (for older pandas)
 try:
     styled_df = df.style.map(style_cells, subset=["Slot 1", "Slot 2", "Slot 3", "Slot 4"])
 except AttributeError:
