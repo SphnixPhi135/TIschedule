@@ -7,11 +7,16 @@ from datetime import datetime
 
 st.set_page_config(page_title="Lab Meeting Schedule", layout="wide")
 
-# --- HIDE STREAMLIT TOOLBAR & FOOTER ---
+# --- HIDE STREAMLIT BRANDING & FLOATING BADGES ---
 hide_elements_css = """
 <style>
+    /* Hide the top right GitHub menu */
     [data-testid="stToolbar"] {visibility: hidden !important;}
+    /* Hide the default Made with Streamlit footer */
     footer {visibility: hidden !important;}
+    /* Hide the Streamlit Cloud floating developer badge */
+    .viewerBadge_container {display: none !important;}
+    .viewerBadge_link {display: none !important;}
 </style>
 """
 st.markdown(hide_elements_css, unsafe_allow_html=True)
