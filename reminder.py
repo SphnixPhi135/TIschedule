@@ -15,25 +15,34 @@ emails = pd.read_csv("members.csv").set_index("Name")["Email"].to_dict()
 # Calculate the date string for the upcoming Monday
 today = datetime.now()
 next_monday = today + timedelta(days=(7 - today.weekday() + 0) % 7)
-monday_str = next_monday.strftime("%d-%b").lstrip("0") # Formats to match "14-Sep" etc.
+monday_str = next_monday.strftime("%d-%b").lstrip("0") 
 
 # Find presenters scheduled for that specific Monday
 presenters = []
+meeting_cancelled = False
+
 for idx, row in df.iterrows():
     if row["Date"] == monday_str:
+        # Check if the notes column contains 'cancel'
+        if 'cancel' in str(row.get('Notes', '')).lower():
+            meeting_cancelled = True
+            break
+            
         for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
             if pd.notna(row[slot]) and str(row[slot]).strip() != "":
                 presenters.append(str(row[slot]).strip())
 
-# If there are presenters, prepare and send the email
-if presenters:
+# Logic to send or skip the email
+if meeting_cancelled:
+    print(f"Meeting on {monday_str} is marked as cancelled. Skipping reminders.")
+elif presenters:
     recipient_emails = [emails.get(p) for p in presenters if emails.get(p)]
     
     if recipient_emails:
         sender = os.environ.get("SMTP_USER")
         password = os.environ.get("SMTP_PASSWORD")
         
-        msg = MIMEText(f"Hello,\n\nThis is a friendly reminder that you are scheduled to present at the group meeting this coming Monday ({monday_str}).\n\nBest,\nVinicio")
+        msg = MIMEText(f"Hello,\n\nThis is a friendly reminder that you are scheduled to present at the group meeting this coming Monday ({monday_str}).\n\nBest,\nSchedule Bot")
         msg['Subject'] = 'Upcoming Presentation Reminder'
         msg['From'] = sender
         msg['To'] = ", ".join(recipient_emails)
@@ -45,3 +54,5 @@ if presenters:
             print(f"Successfully sent reminder to {recipient_emails}")
         except Exception as e:
             print(f"Failed to send email: {e}")
+else:
+    print(f"No presenters found for {monday_str}.")
