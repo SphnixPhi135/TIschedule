@@ -23,7 +23,6 @@ st.markdown(hide_elements_css, unsafe_allow_html=True)
 
 
 # --- 1. COLOR MAPPINGS & LAB ROSTER ---
-# --- 1. COLOR MAPPINGS & LAB ROSTER ---
 PI_COLORS = {
     "Yvette": {"bg": "#5B9BD5", "text": "white"},
     "Juan": {"bg": "#C00000", "text": "white"},
@@ -69,7 +68,7 @@ for pi, members in TECHNICIANS.items():
 @st.cache_data
 def load_emails():
     try:
-        df_emails = pd.read_csv(MEMBERS_FILE)
+        df_emails = pd.read_csv("members.csv") # Explicitly referencing members.csv
         return dict(zip(df_emails.Name, df_emails.Email))
     except FileNotFoundError:
         return {}
@@ -149,6 +148,11 @@ upcoming_row = None
 for idx, row in df.iterrows():
     if pd.notna(row.get('Date')):
         date_str = str(row.get('Date', "")).strip()
+        
+        # Skip if meeting is cancelled
+        if 'cancel' in str(row.get('Notes', '')).lower():
+            continue
+            
         try:
             row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
             if row_date >= current_date:
@@ -232,6 +236,10 @@ with st.expander("Click here to change a slot or swap with another member", expa
                     continue  # Skip dates that have passed
             except ValueError:
                 pass 
+            
+            # Skip dates marked as cancelled
+            if 'cancel' in str(row.get('Notes', '')).lower():
+                continue
             
             for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
                 presenter = str(row.get(slot, "")).strip()
