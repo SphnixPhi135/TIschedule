@@ -12,28 +12,15 @@ hide_elements_css = """
 <style>
     /* Hide the top right GitHub menu */
     [data-testid="stToolbar"] {visibility: hidden !important;}
-    
-    /* Hide the default Made with Streamlit text footer */
+    /* Hide the default Made with Streamlit footer */
     footer {visibility: hidden !important;}
-    
-    /* Aggressively target the floating cloud badges */
-    #viewerBadge_container, 
-    #viewerBadge_link, 
-    .viewerBadge_container,
-    iframe[title*="streamlit"],
-    iframe[src*="badge"],
-    /* Target the exact bottom-right injection container */
-    div[data-testid="stAppViewContainer"] > div:last-child {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
+    /* Hide the Streamlit Cloud floating developer badge */
+    .viewerBadge_container {display: none !important;}
+    .viewerBadge_link {display: none !important;}
 </style>
 """
 st.markdown(hide_elements_css, unsafe_allow_html=True)
 
-MEMBERS_FILE = "members.csv"
 
 # --- 1. COLOR MAPPINGS & LAB ROSTER ---
 # --- 1. COLOR MAPPINGS & LAB ROSTER ---
