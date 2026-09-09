@@ -5,22 +5,33 @@ from email.mime.text import MIMEText
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
-st.set_page_config(page_title="Lab Meeting Schedule", layout="wide")
+st.set_page_config(page_title="Tumor Immunology Meeting Schedule", layout="wide")
 
 # --- HIDE STREAMLIT BRANDING & FLOATING BADGES ---
 hide_elements_css = """
 <style>
     /* Hide the top right GitHub menu */
     [data-testid="stToolbar"] {visibility: hidden !important;}
-    /* Hide the default Made with Streamlit footer */
+    
+    /* Hide the default Made with Streamlit text footer */
     footer {visibility: hidden !important;}
-    /* Hide the Streamlit Cloud floating developer badge */
-    .viewerBadge_container {display: none !important;}
-    .viewerBadge_link {display: none !important;}
+    
+    /* Aggressively target the floating cloud badges */
+    #viewerBadge_container, 
+    #viewerBadge_link, 
+    .viewerBadge_container,
+    iframe[title*="streamlit"],
+    iframe[src*="badge"],
+    /* Target the exact bottom-right injection container */
+    div[data-testid="stAppViewContainer"] > div:last-child {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
 </style>
 """
 st.markdown(hide_elements_css, unsafe_allow_html=True)
-
 
 MEMBERS_FILE = "members.csv"
 
