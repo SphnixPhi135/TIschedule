@@ -7,13 +7,15 @@ from datetime import datetime
 
 st.set_page_config(page_title="Lab Meeting Schedule", layout="wide")
 
-# --- HIDE STREAMLIT TOOLBAR (GITHUB LINK) ---
-hide_toolbar_css = """
+# --- HIDE STREAMLIT TOOLBAR & FOOTER ---
+hide_elements_css = """
 <style>
     [data-testid="stToolbar"] {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
 </style>
 """
-st.markdown(hide_toolbar_css, unsafe_allow_html=True)
+st.markdown(hide_elements_css, unsafe_allow_html=True)
+
 
 MEMBERS_FILE = "members.csv"
 
