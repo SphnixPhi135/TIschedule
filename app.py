@@ -1,14 +1,23 @@
-from datetime import datetime
 import streamlit as st
 import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
 from streamlit_gsheets import GSheetsConnection
+from datetime import datetime
 
 st.set_page_config(page_title="Lab Meeting Schedule", layout="wide")
 
+# --- HIDE STREAMLIT TOOLBAR (GITHUB LINK) ---
+hide_toolbar_css = """
+<style>
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+</style>
+"""
+st.markdown(hide_toolbar_css, unsafe_allow_html=True)
+
 MEMBERS_FILE = "members.csv"
 
+# --- 1. COLOR MAPPINGS & LAB ROSTER ---
 # --- 1. COLOR MAPPINGS & LAB ROSTER ---
 PI_COLORS = {
     "Yvette": {"bg": "#5B9BD5", "text": "white"},
@@ -124,8 +133,60 @@ if "df" not in st.session_state:
 df = st.session_state.df
 
 st.title("📅 Group Meeting Presentation Schedule")
+st.write("") # Small spacer
 
-# --- 2. PI LEGEND & ROSTER ---
+# --- 2. NEXT MEETING HIGHLIGHT BANNER ---
+current_date = datetime.now().date()
+current_year = current_date.year
+upcoming_row = None
+
+# Find the first row that hasn't passed yet
+for idx, row in df.iterrows():
+    if pd.notna(row.get('Date')):
+        date_str = str(row.get('Date', "")).strip()
+        try:
+            row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
+            if row_date >= current_date:
+                upcoming_row = row
+                break
+        except ValueError:
+            pass
+
+if upcoming_row is not None:
+    st.markdown(f"### 📢 Next Meeting: **{upcoming_row['Date']}**")
+    banner_cols = st.columns(4)
+    slots = ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]
+    slot_titles = ["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"]
+    
+    for col, slot, title in zip(banner_cols, slots, slot_titles):
+        presenter = str(upcoming_row.get(slot, "")).strip()
+        if presenter and presenter != "nan" and presenter != "None":
+            pi = MEMBER_PI_MAP.get(presenter)
+            # Use PI colors if found, otherwise default to a dark gray
+            bg_color = PI_COLORS[pi]["bg"] if pi else "#444444"
+            text_color = PI_COLORS[pi]["text"] if pi else "white"
+            
+            col.markdown(
+                f'<div style="background-color: {bg_color}; color: {text_color}; '
+                f'padding: 20px; border-radius: 10px; text-align: center; '
+                f'box-shadow: 0px 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">'
+                f'<h3 style="margin: 0; color: {text_color}; padding-bottom: 5px;">{presenter}</h3>'
+                f'<p style="margin: 0; font-size: 14px; opacity: 0.9;">{title}</p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            col.markdown(
+                f'<div style="background-color: #262730; color: #888888; '
+                f'padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">'
+                f'<h3 style="margin: 0; color: #888888; padding-bottom: 5px;">Empty</h3>'
+                f'<p style="margin: 0; font-size: 14px; opacity: 0.7;">{title}</p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+    st.markdown("---")
+
+# --- 3. PI LEGEND & ROSTER ---
 st.subheader("🔬 PI Groups & Lab Roster")
 with st.expander("View Color Legend, Presenters, and Technicians", expanded=False):
     pi_names = list(PI_COLORS.keys())
@@ -148,34 +209,28 @@ with st.expander("View Color Legend, Presenters, and Technicians", expanded=Fals
                     if tech: st.markdown("**Technicians:**\n" + "\n".join([f"- {t}" for t in tech]))
                     st.write("")
 
-# --- 3. SWAP OR REASSIGN TOOL ---
+# --- 4. SWAP OR REASSIGN TOOL ---
 st.subheader("🔄 Swap or Reassign Presentation Slots")
 with st.expander("Click here to change a slot or swap with another member", expanded=False):
     slot_entries = []
     scheduled_people = []
-    
-    current_date = datetime.now().date()
-    current_year = current_date.year
     
     # 1. Identify everyone currently on the schedule
     for idx, row in df.iterrows():
         if pd.notna(row.get('Date')):
             date_str = str(row.get('Date', "")).strip()
             
-            # --- DATE LOCK LOGIC ---
+            # DATE LOCK LOGIC
             try:
-                # Combine the date string with the current year and parse it
                 row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
                 if row_date < current_date:
-                    continue  # Skip this week completely if the date has passed
+                    continue  # Skip dates that have passed
             except ValueError:
-                pass # If the date is typed incorrectly in the sheet, ignore the lock
-            # -----------------------
+                pass 
             
             for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
                 presenter = str(row.get(slot, "")).strip()
                 if presenter and presenter != "nan" and presenter != "None":
-                    # Add time limits to the dropdown labels
                     slot_display = "Slot 1 (30 min)" if slot == "Slot 1" else f"{slot} (5 min)"
                     label = f"{date_str} - {slot_display}: {presenter}"
                     
@@ -185,16 +240,12 @@ with st.expander("Click here to change a slot or swap with another member", expa
     # 2. Build the lists for the dropdown menus
     entry_labels = [e["label"] for e in slot_entries]
     
-    # Compile a list of strictly Presenters (ignore Technicians)
     all_presenters = []
     for members in PRESENTERS.values():
         all_presenters.extend(members)
         
-    # Filter presenters who are not currently scheduled for UPCOMING slots
     unscheduled_presenters = [m for m in all_presenters if m not in scheduled_people]
     unscheduled_labels = [f"Unscheduled: {m}" for m in sorted(unscheduled_presenters)]
-    
-    # Target options include existing slots AND unscheduled presenters only
     target_options = entry_labels + unscheduled_labels
     
     if entry_labels:
@@ -209,7 +260,6 @@ with st.expander("Click here to change a slot or swap with another member", expa
                 item_a = next(e for e in slot_entries if e["label"] == choice_a)
                 
                 if choice_b.startswith("Unscheduled: "):
-                    # Handle 1-way REPLACEMENT
                     new_person = choice_b.replace("Unscheduled: ", "")
                     df.at[item_a["idx"], item_a["slot"]] = new_person
                     save_data(df)
@@ -218,7 +268,6 @@ with st.expander("Click here to change a slot or swap with another member", expa
                     st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
                     st.rerun()
                 else:
-                    # Handle 2-way SWAP
                     item_b = next(e for e in slot_entries if e["label"] == choice_b)
                     df.at[item_a["idx"], item_a["slot"]] = item_b["person"]
                     df.at[item_b["idx"], item_b["slot"]] = item_a["person"]
@@ -230,18 +279,15 @@ with st.expander("Click here to change a slot or swap with another member", expa
     else:
         st.info("No upcoming schedule data available to swap.")
 
-# --- 4. STYLED TABLE ---
+# --- 5. STYLED TABLE ---
 st.subheader("📋 Current Schedule")
 
-# 1. Create a display copy so we don't alter the background swapping logic
 display_df = df.copy()
 
-# 2. Format columns (clean integers for Week, remove "nan" from Notes)
 display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
 if "Notes" in display_df.columns:
     display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
 
-# 3. Rename the columns directly in the display dataframe
 display_df = display_df.rename(columns={
     "Slot 1": "Slot 1 (30 min)",
     "Slot 2": "Slot 2 (5 min)",
@@ -257,11 +303,9 @@ def style_cells(val):
         return f"background-color: {bg}; color: {text}; font-weight: 500;"
     return ""
 
-# 4. Apply styles pointing to the newly renamed columns
 try:
     styled_df = display_df.style.map(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 except AttributeError:
     styled_df = display_df.style.applymap(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 
-# 5. Use st.table() to create a fully locked, unmovable display
 st.table(styled_df)
