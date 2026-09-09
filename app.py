@@ -99,10 +99,24 @@ def send_swap_email(person_a, person_b, date_a, date_b):
     email_b = EMAIL_DICT.get(person_b)
     if not email_a or not email_b: return
 
-    msg = MIMEText(f"Hello {person_a} and {person_b},\n\nYour presentation slots have been successfully swapped.\n\n{person_a} is now presenting on: {date_b}\n{person_b} is now presenting on: {date_a}\n\nPlease check the schedule for details.")
+    html_content = f"""
+    <html>
+      <body>
+        <p>Hello {person_a} and {person_b},</p>
+        <p>Your presentation slots have been successfully swapped.</p>
+        <ul>
+          <li><b>{person_a}</b> is now presenting on: {date_b}</li>
+          <li><b>{person_b}</b> is now presenting on: {date_a}</li>
+        </ul>
+        <p>Please check the <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> for details.</p>
+      </body>
+    </html>
+    """
+    msg = MIMEText(html_content, 'html')
     msg['Subject'] = 'Meeting Schedule Swap Confirmation'
     msg['From'] = sender
     msg['To'] = f"{email_a}, {email_b}"
+    
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender, password)
@@ -120,15 +134,27 @@ def send_replacement_email(old_person, new_person, date):
     email_new = EMAIL_DICT.get(new_person)
     if not email_old or not email_new: return
 
-    msg = MIMEText(f"Hello {old_person} and {new_person},\n\nThe schedule has been updated.\n\n{new_person} will now be presenting on {date} instead of {old_person}.\n\nPlease check the schedule for details.")
+    html_content = f"""
+    <html>
+      <body>
+        <p>Hello {old_person} and {new_person},</p>
+        <p>The <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> has been updated.</p>
+        <p><b>{new_person}</b> will now be presenting on {date} instead of {old_person}.</p>
+        <p>Please check the <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> for details.</p>
+      </body>
+    </html>
+    """
+    msg = MIMEText(html_content, 'html')
     msg['Subject'] = 'Meeting Schedule Reassignment'
     msg['From'] = sender
     msg['To'] = f"{email_old}, {email_new}"
+    
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender, password)
             server.send_message(msg)
     except Exception: pass
+
 
 # --- INITIALIZE DATA ---
 if "df" not in st.session_state:
