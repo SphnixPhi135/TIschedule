@@ -42,10 +42,21 @@ elif presenters:
         sender = os.environ.get("SMTP_USER")
         password = os.environ.get("SMTP_PASSWORD")
         
-        msg = MIMEText(f"Hello,\n\nThis is a friendly reminder that you are scheduled to present at the group meeting this coming Monday ({monday_str}).\n\nBest,\nSchedule Bot")
+        # --- THIS IS THE UPDATED HTML EMAIL BLOCK ---
+        html_content = f"""
+        <html>
+          <body>
+            <p>Hello,</p>
+            <p>This is a friendly reminder that you are <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">scheduled</a> to present at the group meeting this coming Monday ({monday_str}).</p>
+            <p>Best,<br>Vinicio</p>
+          </body>
+        </html>
+        """
+        msg = MIMEText(html_content, 'html')
         msg['Subject'] = 'Upcoming Presentation Reminder'
         msg['From'] = sender
         msg['To'] = ", ".join(recipient_emails)
+        # --------------------------------------------
 
         try:
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
