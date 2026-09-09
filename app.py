@@ -137,7 +137,7 @@ if "df" not in st.session_state:
 
 df = st.session_state.df
 
-st.title("📅 Group Meeting Presentation Schedule")
+st.title("📅 Tumor Immunology Meeting Presentation Schedule")
 st.write("") # Small spacer
 
 # --- 2. NEXT MEETING HIGHLIGHT BANNER ---
