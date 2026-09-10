@@ -47,7 +47,7 @@ elif presenters:
         <html>
           <body>
             <p>Hello,</p>
-            <p>This is a friendly reminder that you are <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">scheduled</a> to present at the group meeting this coming Monday ({monday_str}).</p>
+            <p>This is a friendly reminder that you are <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">scheduled</a> to present at the TI meeting this coming Monday ({monday_str}).</p>
             <p>Best,<br>Vinicio</p>
           </body>
         </html>
