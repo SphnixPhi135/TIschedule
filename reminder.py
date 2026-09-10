@@ -54,7 +54,7 @@ elif presenters:
         """
         msg = MIMEText(html_content, 'html')
         msg['Subject'] = 'Upcoming Presentation Reminder'
-        msg['From'] = sender
+        msg['From'] = f"Vinicio Melo <{sender}>"
         msg['To'] = ", ".join(recipient_emails)
         # --------------------------------------------
 
