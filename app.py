@@ -114,7 +114,7 @@ def send_swap_email(person_a, person_b, date_a, date_b):
     """
     msg = MIMEText(html_content, 'html')
     msg['Subject'] = 'Meeting Schedule Swap Confirmation'
-    msg['From'] = f"Vinicio Melo <{sender}>"
+    msg['From'] = sender
     msg['To'] = f"{email_a}, {email_b}"
     
     try:
@@ -146,7 +146,7 @@ def send_replacement_email(old_person, new_person, date):
     """
     msg = MIMEText(html_content, 'html')
     msg['Subject'] = 'Meeting Schedule Reassignment'
-    msg['From'] = f"Vinicio Melo <{sender}>"
+    msg['From'] = sender
     msg['To'] = f"{email_old}, {email_new}"
     
     try:
