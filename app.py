@@ -247,10 +247,11 @@ with st.expander("View Color Legend, Presenters, and Technicians", expanded=Fals
 # --- 4. SWAP OR REASSIGN TOOL ---
 st.subheader("🔄 Swap or Reassign Presentation Slots")
 with st.expander("Click here to change a slot or swap with another member", expanded=False):
-    slot_entries = []
-    scheduled_people = []
     
-    # 1. Identify everyone currently on the schedule
+    # 1. Parse schedule to find all valid upcoming slots
+    all_slot_entries = []
+    scheduled_people = set()
+
     for idx, row in df.iterrows():
         if pd.notna(row.get('Date')):
             date_str = str(row.get('Date', "")).strip()
@@ -273,50 +274,78 @@ with st.expander("Click here to change a slot or swap with another member", expa
                     slot_display = "Slot 1 (30 min)" if slot == "Slot 1" else f"{slot} (5 min)"
                     label = f"{date_str} - {slot_display}: {presenter}"
                     
-                    slot_entries.append({"label": label, "idx": idx, "slot": slot, "person": presenter, "date": date_str})
-                    scheduled_people.append(presenter)
-    
-    # 2. Build the lists for the dropdown menus
-    entry_labels = [e["label"] for e in slot_entries]
-    
-    all_presenters = []
-    for members in PRESENTERS.values():
-        all_presenters.extend(members)
-        
-    unscheduled_presenters = [m for m in all_presenters if m not in scheduled_people]
-    unscheduled_labels = [f"Unscheduled: {m}" for m in sorted(unscheduled_presenters)]
-    target_options = entry_labels + unscheduled_labels
-    
-    if entry_labels:
-        col_a, col_b = st.columns(2)
-        with col_a: choice_a = st.selectbox("Select slot to change:", options=entry_labels, index=0)
-        with col_b: choice_b = st.selectbox("Swap with slot OR Reassign to:", options=target_options, index=1 if len(entry_labels)>1 else 0)
-            
-        if st.button("Confirm Change", type="primary"):
-            if choice_a == choice_b:
-                st.warning("Please choose a different target to make a change.")
-            else:
-                item_a = next(e for e in slot_entries if e["label"] == choice_a)
-                
-                if choice_b.startswith("Unscheduled: "):
-                    new_person = choice_b.replace("Unscheduled: ", "")
-                    df.at[item_a["idx"], item_a["slot"]] = new_person
-                    save_data(df)
-                    send_replacement_email(item_a['person'], new_person, item_a['date'])
-                    
-                    st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
-                    st.rerun()
-                else:
-                    item_b = next(e for e in slot_entries if e["label"] == choice_b)
-                    df.at[item_a["idx"], item_a["slot"]] = item_b["person"]
-                    df.at[item_b["idx"], item_b["slot"]] = item_a["person"]
-                    save_data(df)
-                    send_swap_email(item_a['person'], item_b['person'], item_a['date'], item_b['date'])
-                    
-                    st.success(f"Swapped **{item_a['person']}** and **{item_b['person']}** successfully! Email sent.")
-                    st.rerun()
-    else:
+                    all_slot_entries.append({"label": label, "idx": idx, "slot": slot, "person": presenter, "date": date_str})
+                    scheduled_people.add(presenter)
+
+    if not all_slot_entries:
         st.info("No upcoming schedule data available to swap.")
+    else:
+        # --- STEP 1: Select Presenter ---
+        sorted_presenters = sorted(list(scheduled_people))
+        selected_presenter = st.selectbox("1. Select Presenter to modify:", ["-- Choose a member --"] + sorted_presenters)
+
+        if selected_presenter != "-- Choose a member --":
+            
+            # Find this person's specific slots
+            person_slots = [e for e in all_slot_entries if e["person"] == selected_presenter]
+            person_slot_labels = [e["label"] for e in person_slots]
+
+            # --- STEP 2: Select Specific Slot ---
+            selected_slot_label = st.selectbox(f"2. Select the specific slot for {selected_presenter}:", ["-- Choose a slot --"] + person_slot_labels)
+
+            if selected_slot_label != "-- Choose a slot --":
+                item_a = next(e for e in person_slots if e["label"] == selected_slot_label)
+
+                # --- STEP 3: Choose Action ---
+                action = st.radio("3. What would you like to do?", ["Swap with another member", "Reassign to someone else"])
+
+                # --- STEP 4a: Swap Logic ---
+                if action == "Swap with another member":
+                    # Show all slots EXCEPT the one currently selected
+                    other_slots = [e["label"] for e in all_slot_entries if e["label"] != selected_slot_label]
+                    
+                    if not other_slots:
+                        st.warning("There are no other scheduled members to swap with.")
+                    else:
+                        choice_b = st.selectbox("4. Select the slot to swap with:", other_slots)
+
+                        if st.button("Confirm Swap", type="primary"):
+                            item_b = next(e for e in all_slot_entries if e["label"] == choice_b)
+                            
+                            # Execute Swap
+                            df.at[item_a["idx"], item_a["slot"]] = item_b["person"]
+                            df.at[item_b["idx"], item_b["slot"]] = item_a["person"]
+                            save_data(df)
+                            send_swap_email(item_a['person'], item_b['person'], item_a['date'], item_b['date'])
+                            
+                            st.success(f"Swapped **{item_a['person']}** and **{item_b['person']}** successfully! Email sent.")
+                            st.rerun()
+
+                # --- STEP 4b: Reassign Logic ---
+                elif action == "Reassign to someone else":
+                    # Build list of unscheduled members
+                    all_lab_members = []
+                    for members in PRESENTERS.values():
+                        all_lab_members.extend(members)
+                        
+                    unscheduled = [m for m in all_lab_members if m not in scheduled_people]
+                    unscheduled_sorted = sorted(unscheduled)
+                    
+                    if not unscheduled_sorted:
+                        st.warning("All lab members are currently scheduled.")
+                    else:
+                        choice_b = st.selectbox("4. Select the new presenter:", unscheduled_sorted)
+
+                        if st.button("Confirm Reassignment", type="primary"):
+                            new_person = choice_b
+                            
+                            # Execute Reassignment
+                            df.at[item_a["idx"], item_a["slot"]] = new_person
+                            save_data(df)
+                            send_replacement_email(item_a['person'], new_person, item_a['date'])
+                            
+                            st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
+                            st.rerun()
 
 # --- 5. STYLED TABLE ---
 st.subheader("📋 Current Schedule")
