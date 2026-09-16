@@ -3,7 +3,7 @@ name: Keep Streamlit App Awake
 on:
   schedule:
     # Runs at 08:00 UTC every Monday (1) and Thursday (4)
-    - cron: '0 8 * * 1,4'
+    - cron: '0 8 * * 0,2,4,6'
   workflow_dispatch: # Allows manual testing
 
 jobs:
