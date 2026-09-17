@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
-st.set_page_config(page_title="Tumor Immunology Meeting Schedule", layout="wide")
+st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
 
 # --- HIDE STREAMLIT BRANDING & FLOATING BADGES ---
 hide_elements_css = """
