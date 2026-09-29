@@ -387,7 +387,7 @@ try:
     df_pending = conn.read(worksheet="Pending", ttl=0)
     df_pending = df_pending.dropna(how='all')
 except Exception:
-    df_pending = pd.DataFrame(columns=["Name", "Note", "Date"])
+    df_pending = pd.DataFrame(columns=["Name", "Date"])
 
 # Display the running list publicly below the header
 if not df_pending.empty:
@@ -409,25 +409,25 @@ with st.expander("Admin: Report a missed presentation", expanded=False):
             all_lab_members.extend(members)
         
         missed_person = st.selectbox("Select member who did not present:", ["-- Choose a member --"] + sorted(all_lab_members))
-        missed_note = st.text_input("Note/Reason (optional):", placeholder="e.g., Sick, meeting ran out of time")
+        
+        # Add a date picker (defaults to today's date)
+        missed_date = st.date_input("Select the date of the missed presentation:", value=current_date)
         
         if st.button("Save to Pending List", type="primary"):
             if missed_person != "-- Choose a member --":
-                # Create the new entry
+                # Create the new entry using the selected date and dropping the note
                 new_row = pd.DataFrame([{
                     "Name": missed_person, 
-                    "Note": missed_note, 
-                    "Date": current_date.strftime("%d-%b-%Y")
+                    "Date": missed_date.strftime("%d-%b-%Y")
                 }])
                 
                 # Append to existing list and save back to Google Sheets
                 updated_pending = pd.concat([df_pending, new_row], ignore_index=True)
                 conn.update(worksheet="Pending", data=updated_pending)
                 
-                st.success(f"Added **{missed_person}** to the pending list!")
+                st.success(f"Added **{missed_person}** on **{missed_date.strftime('%d-%b-%Y')}** to the pending list!")
                 st.rerun()
             else:
                 st.warning("Please select a member.")
     elif admin_password != "":
         st.error("Incorrect password.")
-
