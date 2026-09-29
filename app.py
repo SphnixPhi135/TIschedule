@@ -400,6 +400,22 @@ display_df = display_df.rename(columns={
     "Slot 4": "Slot 4 (5 min)"
 })
 
+# 4. Reorder the columns to put Missed Presentations before Notes
+new_column_order = [
+    "Week", 
+    "Date", 
+    "Slot 1 (30 min)", 
+    "Slot 2 (5 min)", 
+    "Slot 3 (5 min)", 
+    "Slot 4 (5 min)", 
+    "Missed Presentations"
+]
+# Only add 'Notes' if it exists in the original sheet
+if "Notes" in display_df.columns:
+    new_column_order.append("Notes")
+
+display_df = display_df[new_column_order]
+
 def style_cells(val):
     pi = MEMBER_PI_MAP.get(str(val).strip())
     if pi:
