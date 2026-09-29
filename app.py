@@ -356,6 +356,29 @@ display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0
 if "Notes" in display_df.columns:
     display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
 
+# 1. Load Pending data early so we can inject it into the main schedule
+try:
+    df_pending = conn.read(worksheet="Pending", ttl=0)
+    df_pending = df_pending.dropna(how='all')
+except Exception:
+    df_pending = pd.DataFrame(columns=["Name", "Date"])
+
+# 2. Map missed presentations by their dates
+missed_mapping = {}
+if not df_pending.empty:
+    for idx, row in df_pending.iterrows():
+        m_date = str(row.get("Date", "")).strip()
+        m_name = str(row.get("Name", "")).strip()
+        if m_date and m_name:
+            if m_date not in missed_mapping:
+                missed_mapping[m_date] = []
+            missed_mapping[m_date].append(m_name)
+
+# 3. Dynamically add the new "Missed Presentations" column to the display dataframe
+display_df["Missed Presentations"] = display_df["Date"].astype(str).str.strip().apply(
+    lambda d: ", ".join(missed_mapping.get(d, []))
+)
+
 display_df = display_df.rename(columns={
     "Slot 1": "Slot 1 (30 min)",
     "Slot 2": "Slot 2 (5 min)",
@@ -382,23 +405,17 @@ st.table(styled_df)
 st.markdown("---")
 st.subheader("🚩 Missed Presentations (Next Year Planning)")
 
-# Attempt to load Pending data from Google Sheets
-try:
-    df_pending = conn.read(worksheet="Pending", ttl=0)
-    df_pending = df_pending.dropna(how='all')
-except Exception:
-    df_pending = pd.DataFrame(columns=["Name", "Date"])
-
 # Display the running list publicly below the header
 if not df_pending.empty:
     # Temporarily convert the text dates to real datetime objects for accurate sorting
-    df_pending['SortDate'] = pd.to_datetime(df_pending['Date'], errors='coerce')
+    df_pending_display = df_pending.copy()
+    df_pending_display['SortDate'] = pd.to_datetime(df_pending_display['Date'], errors='coerce')
     
     # Sort chronologically (earliest first/ascending)
-    df_pending = df_pending.sort_values(by='SortDate', ascending=True)
+    df_pending_display = df_pending_display.sort_values(by='SortDate', ascending=True)
     
     # Drop the temporary sorting column and clean up empty cells before displaying
-    display_pending = df_pending.drop(columns=['SortDate']).fillna("")
+    display_pending = df_pending_display.drop(columns=['SortDate']).fillna("")
     
     # Apply the PI group colors to the Name column
     def style_pending_names(val):
