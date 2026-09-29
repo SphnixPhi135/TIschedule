@@ -2,13 +2,26 @@ name: Keep Streamlit App Awake
 
 on:
   schedule:
-    # Runs at 08:00 UTC every Monday and Thursday
-    - cron: '0  */1 * * *'
+    # Runs at minute 0 past every 6th hour
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
-  ping_app:
+  wake_app:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping the Streamlit URL
-        run: curl -sL -c cookies.txt -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/ > /dev/null
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Run wake-up script
+        run: python wake_app.py
