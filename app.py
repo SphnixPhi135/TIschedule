@@ -403,31 +403,60 @@ with st.expander("Admin: Report a missed presentation", expanded=False):
     if admin_password == st.secrets.get("ADMIN_PASSWORD"):
         st.success("Admin controls unlocked.")
         
-        # Gather all lab members for the dropdown
+        # 1. Gather all lab members for the dropdown
         all_lab_members = []
         for members in PRESENTERS.values():
             all_lab_members.extend(members)
         
         missed_person = st.selectbox("Select member who did not present:", ["-- Choose a member --"] + sorted(all_lab_members))
         
-        # Add a date picker (defaults to today's date)
-        missed_date = st.date_input("Select the date of the missed presentation:", value=current_date)
-        
-        if st.button("Save to Pending List", type="primary"):
-            if missed_person != "-- Choose a member --":
-                # Create the new entry using the selected date and dropping the note
-                new_row = pd.DataFrame([{
-                    "Name": missed_person, 
-                    "Date": missed_date.strftime("%d-%b-%Y")
-                }])
+        # 2. Only search for dates if a specific person is chosen
+        if missed_person != "-- Choose a member --":
+            
+            past_person_dates = []
+            for idx, row in df.iterrows():
                 
-                # Append to existing list and save back to Google Sheets
-                updated_pending = pd.concat([df_pending, new_row], ignore_index=True)
-                conn.update(worksheet="Pending", data=updated_pending)
+                # Check if this specific person was scheduled in any slot on this row
+                is_scheduled = False
+                for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
+                    if str(row.get(slot, "")).strip() == missed_person:
+                        is_scheduled = True
+                        break
                 
-                st.success(f"Added **{missed_person}** on **{missed_date.strftime('%d-%b-%Y')}** to the pending list!")
-                st.rerun()
+                # If they were scheduled, verify the date is in the past
+                if is_scheduled and pd.notna(row.get('Date')):
+                    date_str = str(row.get('Date', "")).strip()
+                    try:
+                        row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
+                        if row_date <= current_date:
+                            formatted_date = row_date.strftime("%d-%b-%Y")
+                            past_person_dates.append(formatted_date)
+                    except ValueError:
+                        pass
+            
+            # Sort so the most recent dates are at the top
+            past_person_dates = sorted(list(set(past_person_dates)), key=lambda d: datetime.strptime(d, "%d-%b-%Y"), reverse=True)
+            
+            if not past_person_dates:
+                st.warning(f"**{missed_person}** does not have any past scheduled presentations on record.")
             else:
-                st.warning("Please select a member.")
+                missed_date = st.selectbox(f"Select the missed presentation date for {missed_person}:", ["-- Choose a date --"] + past_person_dates)
+                
+                if st.button("Save to Pending List", type="primary"):
+                    if missed_date == "-- Choose a date --":
+                        st.warning("Please select a valid past date.")
+                    else:
+                        # Create the new entry using the selected past date
+                        new_row = pd.DataFrame([{
+                            "Name": missed_person, 
+                            "Date": missed_date
+                        }])
+                        
+                        # Append to existing list and save back to Google Sheets
+                        updated_pending = pd.concat([df_pending, new_row], ignore_index=True)
+                        conn.update(worksheet="Pending", data=updated_pending)
+                        
+                        st.success(f"Added **{missed_person}** on **{missed_date}** to the pending list!")
+                        st.rerun()
     elif admin_password != "":
         st.error("Incorrect password.")
