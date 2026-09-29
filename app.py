@@ -391,7 +391,16 @@ except Exception:
 
 # Display the running list publicly below the header
 if not df_pending.empty:
-    st.dataframe(df_pending.fillna(""), hide_index=True, use_container_width=True)
+    # Temporarily convert the text dates to real datetime objects for accurate sorting
+    df_pending['SortDate'] = pd.to_datetime(df_pending['Date'], errors='coerce')
+    
+    # Sort chronologically (earliest first/ascending)
+    df_pending = df_pending.sort_values(by='SortDate', ascending=True)
+    
+    # Drop the temporary sorting column and clean up empty cells before displaying
+    display_pending = df_pending.drop(columns=['SortDate']).fillna("")
+    
+    st.dataframe(display_pending, hide_index=True, use_container_width=True)
 else:
     st.info("No missed presentations reported yet.")
 
@@ -434,7 +443,7 @@ with st.expander("Admin: Report a missed presentation", expanded=False):
                     except ValueError:
                         pass
             
-            # Sort so the most recent dates are at the top
+            # Sort so the most recent dates are at the top of the dropdown
             past_person_dates = sorted(list(set(past_person_dates)), key=lambda d: datetime.strptime(d, "%d-%b-%Y"), reverse=True)
             
             if not past_person_dates:
