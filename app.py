@@ -363,21 +363,35 @@ try:
 except Exception:
     df_pending = pd.DataFrame(columns=["Name", "Date"])
 
-# 2. Map missed presentations by their dates
+# 2. Map missed presentations by their exact calendar dates to fix formatting mismatches
 missed_mapping = {}
 if not df_pending.empty:
     for idx, row in df_pending.iterrows():
         m_date = str(row.get("Date", "")).strip()
         m_name = str(row.get("Name", "")).strip()
         if m_date and m_name:
-            if m_date not in missed_mapping:
-                missed_mapping[m_date] = []
-            missed_mapping[m_date].append(m_name)
+            try:
+                # Convert "07-Sep-2026" or "7-Sep-2026" into a standardized date object
+                parsed_date = pd.to_datetime(m_date).date()
+                
+                # Use a Set to automatically remove duplicate names for the same date
+                if parsed_date not in missed_mapping:
+                    missed_mapping[parsed_date] = set()
+                missed_mapping[parsed_date].add(m_name)
+            except Exception:
+                pass
 
 # 3. Dynamically add the new "Missed Presentations" column to the display dataframe
-display_df["Missed Presentations"] = display_df["Date"].astype(str).str.strip().apply(
-    lambda d: ", ".join(missed_mapping.get(d, []))
-)
+def get_missed_names(date_val):
+    date_str = str(date_val).strip()
+    try:
+        # Append the current year to the main schedule's "7-Sep" string so it matches the objects
+        parsed_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
+        return ", ".join(sorted(list(missed_mapping.get(parsed_date, []))))
+    except Exception:
+        return ""
+
+display_df["Missed Presentations"] = display_df["Date"].apply(get_missed_names)
 
 display_df = display_df.rename(columns={
     "Slot 1": "Slot 1 (30 min)",
