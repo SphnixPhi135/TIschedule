@@ -400,7 +400,22 @@ if not df_pending.empty:
     # Drop the temporary sorting column and clean up empty cells before displaying
     display_pending = df_pending.drop(columns=['SortDate']).fillna("")
     
-    st.dataframe(display_pending, hide_index=True, use_container_width=True)
+    # Apply the PI group colors to the Name column
+    def style_pending_names(val):
+        pi = MEMBER_PI_MAP.get(str(val).strip())
+        if pi:
+            bg = PI_COLORS[pi]["bg"]
+            text = PI_COLORS[pi]["text"]
+            return f"background-color: {bg}; color: {text}; font-weight: 500;"
+        return ""
+
+    try:
+        styled_pending = display_pending.style.map(style_pending_names, subset=["Name"])
+    except AttributeError:
+        styled_pending = display_pending.style.applymap(style_pending_names, subset=["Name"])
+    
+    # Render the styled dataframe
+    st.dataframe(styled_pending, hide_index=True, use_container_width=True)
 else:
     st.info("No missed presentations reported yet.")
 
