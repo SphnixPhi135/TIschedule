@@ -415,40 +415,8 @@ except AttributeError:
 
 st.table(styled_df)
 
-# --- 6. MISSED PRESENTATIONS (PENDING FOR NEXT YEAR) ---
+# --- 6. ADMIN TOOLS ---
 st.markdown("---")
-st.subheader("🚩 Missed Presentations (Next Year Planning)")
-
-# Display the running list publicly below the header
-if not df_pending.empty:
-    # Temporarily convert the text dates to real datetime objects for accurate sorting
-    df_pending_display = df_pending.copy()
-    df_pending_display['SortDate'] = pd.to_datetime(df_pending_display['Date'], errors='coerce')
-    
-    # Sort chronologically (earliest first/ascending)
-    df_pending_display = df_pending_display.sort_values(by='SortDate', ascending=True)
-    
-    # Drop the temporary sorting column and clean up empty cells before displaying
-    display_pending = df_pending_display.drop(columns=['SortDate']).fillna("")
-    
-    # Apply the PI group colors to the Name column
-    def style_pending_names(val):
-        pi = MEMBER_PI_MAP.get(str(val).strip())
-        if pi:
-            bg = PI_COLORS[pi]["bg"]
-            text = PI_COLORS[pi]["text"]
-            return f"background-color: {bg}; color: {text}; font-weight: 500;"
-        return ""
-
-    try:
-        styled_pending = display_pending.style.map(style_pending_names, subset=["Name"])
-    except AttributeError:
-        styled_pending = display_pending.style.applymap(style_pending_names, subset=["Name"])
-    
-    # Render the styled dataframe
-    st.dataframe(styled_pending, hide_index=True, use_container_width=True)
-else:
-    st.info("No missed presentations reported yet.")
 
 # Admin controls locked behind a password
 with st.expander("Admin: Report a missed presentation", expanded=False):
