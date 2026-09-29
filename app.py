@@ -412,43 +412,41 @@ with st.expander("Admin: Report a missed presentation", expanded=False):
     if admin_password == st.secrets.get("ADMIN_PASSWORD"):
         st.success("Admin controls unlocked.")
         
-        # 1. Gather all lab members for the dropdown
-        all_lab_members = []
-        for members in PRESENTERS.values():
-            all_lab_members.extend(members)
+        # 1. Scan the schedule to find members who had a past presentation, and log their dates
+        past_schedules_dict = {} 
         
-        missed_person = st.selectbox("Select member who did not present:", ["-- Choose a member --"] + sorted(all_lab_members))
+        for idx, row in df.iterrows():
+            if pd.notna(row.get('Date')):
+                date_str = str(row.get('Date', "")).strip()
+                try:
+                    row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
+                    
+                    # Only look at dates that have already passed or are today
+                    if row_date <= current_date:
+                        formatted_date = row_date.strftime("%d-%b-%Y")
+                        
+                        for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
+                            presenter = str(row.get(slot, "")).strip()
+                            if presenter and presenter not in ["nan", "None"]:
+                                # Add the presenter and their specific date to the dictionary
+                                if presenter not in past_schedules_dict:
+                                    past_schedules_dict[presenter] = set()
+                                past_schedules_dict[presenter].add(formatted_date)
+                except ValueError:
+                    pass
         
-        # 2. Only search for dates if a specific person is chosen
-        if missed_person != "-- Choose a member --":
+        if not past_schedules_dict:
+            st.warning("No past scheduled presenters found in the schedule.")
+        else:
+            # 2. Populate dropdown ONLY with people who actually have past scheduled dates
+            valid_presenters = sorted(list(past_schedules_dict.keys()))
+            missed_person = st.selectbox("Select member who did not present:", ["-- Choose a member --"] + valid_presenters)
             
-            past_person_dates = []
-            for idx, row in df.iterrows():
+            # 3. Show the dates specific to that chosen person
+            if missed_person != "-- Choose a member --":
+                # Retrieve the dates from our dictionary and sort them (most recent first)
+                past_person_dates = sorted(list(past_schedules_dict[missed_person]), key=lambda d: datetime.strptime(d, "%d-%b-%Y"), reverse=True)
                 
-                # Check if this specific person was scheduled in any slot on this row
-                is_scheduled = False
-                for slot in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]:
-                    if str(row.get(slot, "")).strip() == missed_person:
-                        is_scheduled = True
-                        break
-                
-                # If they were scheduled, verify the date is in the past
-                if is_scheduled and pd.notna(row.get('Date')):
-                    date_str = str(row.get('Date', "")).strip()
-                    try:
-                        row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-                        if row_date <= current_date:
-                            formatted_date = row_date.strftime("%d-%b-%Y")
-                            past_person_dates.append(formatted_date)
-                    except ValueError:
-                        pass
-            
-            # Sort so the most recent dates are at the top of the dropdown
-            past_person_dates = sorted(list(set(past_person_dates)), key=lambda d: datetime.strptime(d, "%d-%b-%Y"), reverse=True)
-            
-            if not past_person_dates:
-                st.warning(f"**{missed_person}** does not have any past scheduled presentations on record.")
-            else:
                 missed_date = st.selectbox(f"Select the missed presentation date for {missed_person}:", ["-- Choose a date --"] + past_person_dates)
                 
                 if st.button("Save to Pending List", type="primary"):
