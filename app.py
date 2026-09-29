@@ -377,3 +377,57 @@ except AttributeError:
     styled_df = display_df.style.applymap(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 
 st.table(styled_df)
+
+# --- 6. MISSED PRESENTATIONS (PENDING FOR NEXT YEAR) ---
+st.markdown("---")
+st.subheader("🚩 Missed Presentations (Next Year Planning)")
+
+# Attempt to load Pending data from Google Sheets
+try:
+    df_pending = conn.read(worksheet="Pending", ttl=0)
+    df_pending = df_pending.dropna(how='all')
+except Exception:
+    df_pending = pd.DataFrame(columns=["Name", "Note", "Date"])
+
+# Display the running list publicly below the header
+if not df_pending.empty:
+    st.dataframe(df_pending.fillna(""), hide_index=True, use_container_width=True)
+else:
+    st.info("No missed presentations reported yet.")
+
+# Admin controls locked behind a password
+with st.expander("Admin: Report a missed presentation", expanded=False):
+    admin_password = st.text_input("Enter Admin Password to unlock:", type="password")
+    
+    # Check if the entered password matches the one in Streamlit Secrets
+    if admin_password == st.secrets.get("ADMIN_PASSWORD"):
+        st.success("Admin controls unlocked.")
+        
+        # Gather all lab members for the dropdown
+        all_lab_members = []
+        for members in PRESENTERS.values():
+            all_lab_members.extend(members)
+        
+        missed_person = st.selectbox("Select member who did not present:", ["-- Choose a member --"] + sorted(all_lab_members))
+        missed_note = st.text_input("Note/Reason (optional):", placeholder="e.g., Sick, meeting ran out of time")
+        
+        if st.button("Save to Pending List", type="primary"):
+            if missed_person != "-- Choose a member --":
+                # Create the new entry
+                new_row = pd.DataFrame([{
+                    "Name": missed_person, 
+                    "Note": missed_note, 
+                    "Date": current_date.strftime("%d-%b-%Y")
+                }])
+                
+                # Append to existing list and save back to Google Sheets
+                updated_pending = pd.concat([df_pending, new_row], ignore_index=True)
+                conn.update(worksheet="Pending", data=updated_pending)
+                
+                st.success(f"Added **{missed_person}** to the pending list!")
+                st.rerun()
+            else:
+                st.warning("Please select a member.")
+    elif admin_password != "":
+        st.error("Incorrect password.")
+
