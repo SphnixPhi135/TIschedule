@@ -7,8 +7,7 @@ def wake_up():
         page = browser.new_page()
         
         print("Navigating to Tumor Immunology schedule...")
-        
-page.goto("https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/", wait_until="domcontentloaded")
+        page.goto("https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/", wait_until="domcontentloaded")
 
         # Scan the page for the specific Streamlit wake-up button
         button = page.locator("button:has-text('Yes, get this app back up!')")
