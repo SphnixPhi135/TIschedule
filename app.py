@@ -435,7 +435,7 @@ st.table(styled_df)
 st.markdown("---")
 
 # Admin controls locked behind a password
-with st.expander("Admin: Report a missed presentation", expanded=False):
+with st.expander("Admin:", expanded=False):
     admin_password = st.text_input("Enter Admin Password to unlock:", type="password")
     
     # Check if the entered password matches the one in Streamlit Secrets
