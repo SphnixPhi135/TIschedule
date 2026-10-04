@@ -15,8 +15,7 @@ hide_elements_css = """
     /* Hide the default Made with Streamlit footer */
     footer {visibility: hidden !important;}
     /* Hide the Streamlit Cloud floating developer badge */
-    .viewerBadge_container {display: none !important;}
-    .viewerBadge_link {display: none !important;}
+    a[class*="viewerBadge"] {display: none !important;}
     /* Hide the floating Streamlit profile image badge */
     div[class*="profileContainer"] {display: none !important;}
 </style>
