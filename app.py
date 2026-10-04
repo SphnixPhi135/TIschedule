@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
-import smtplib
-from email.mime.text import MIMEText
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
+
+from mailer import SCHEDULE_URL, build_message, send_messages
 
 st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
 
@@ -88,72 +88,140 @@ def save_data(df):
     st.session_state.df = df
 
 # --- EMAILS ---
-def send_swap_email(person_a, person_b, date_a, date_b):
+def _smtp_credentials():
+    """Return (sender, password, reply_to) from Streamlit secrets, or None."""
     try:
         sender = st.secrets.get("SMTP_USER")
         password = st.secrets.get("SMTP_PASSWORD")
-        if not sender or not password: return
-    except Exception: return
+        reply_to = st.secrets.get("REPLY_TO")
+    except Exception:
+        return None
+    if not sender or not password:
+        return None
+    return sender, password, reply_to
+
+
+def _deliver(messages):
+    """Send already-built messages, swallowing errors as before."""
+    creds = _smtp_credentials()
+    if not creds or not messages:
+        return
+    sender, password, _ = creds
+    try:
+        send_messages(sender, password, messages)
+    except Exception:
+        pass
+
+
+def send_swap_email(person_a, person_b, date_a, date_b):
+    creds = _smtp_credentials()
+    if not creds:
+        return
+    sender, _, reply_to = creds
 
     email_a = EMAIL_DICT.get(person_a)
     email_b = EMAIL_DICT.get(person_b)
-    if not email_a or not email_b: return
+    if not email_a or not email_b:
+        return
 
-    html_content = f"""
-    <html>
-      <body>
-        <p>Hello {person_a} and {person_b},</p>
-        <p>Your presentation slots have been successfully swapped.</p>
-        <ul>
-          <li><b>{person_a}</b> is now presenting on: {date_b}</li>
-          <li><b>{person_b}</b> is now presenting on: {date_a}</li>
-        </ul>
-        <p>Please check the <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> for details.</p>
-      </body>
-    </html>
-    """
-    msg = MIMEText(html_content, 'html')
-    msg['Subject'] = 'Meeting Schedule Swap Confirmation'
-    msg['From'] = sender
-    msg['To'] = f"{email_a}, {email_b}"
-    
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender, password)
-            server.send_message(msg)
-    except Exception: pass
+    messages = []
+    # One personalised message each, rather than both names in a single To:.
+    for name, address, own_date, other, other_date in (
+        (person_a, email_a, date_b, person_b, date_a),
+        (person_b, email_b, date_a, person_a, date_b),
+    ):
+        text_body = (
+            f"Hello {name},\n\n"
+            f"Your presentation slot has been swapped with {other}.\n\n"
+            f"You are now presenting on {own_date}.\n"
+            f"{other} is now presenting on {other_date}.\n\n"
+            f"The full schedule is here:\n"
+            f"{SCHEDULE_URL}\n"
+        )
+        html_body = f"""\
+<html>
+  <body>
+    <p>Hello {name},</p>
+    <p>Your presentation slot has been swapped with {other}.</p>
+    <ul>
+      <li>You are now presenting on <b>{own_date}</b></li>
+      <li>{other} is now presenting on <b>{other_date}</b></li>
+    </ul>
+    <p>The full schedule is here:<br>
+       <a href="{SCHEDULE_URL}">{SCHEDULE_URL}</a></p>
+  </body>
+</html>
+"""
+        messages.append(
+            build_message(
+                sender=sender,
+                recipient=address,
+                subject=f"TI meeting: your slot moved to {own_date}",
+                text_body=text_body,
+                html_body=html_body,
+                reply_to=reply_to,
+            )
+        )
+
+    _deliver(messages)
+
 
 def send_replacement_email(old_person, new_person, date):
-    try:
-        sender = st.secrets.get("SMTP_USER")
-        password = st.secrets.get("SMTP_PASSWORD")
-        if not sender or not password: return
-    except Exception: return
+    creds = _smtp_credentials()
+    if not creds:
+        return
+    sender, _, reply_to = creds
 
     email_old = EMAIL_DICT.get(old_person)
     email_new = EMAIL_DICT.get(new_person)
-    if not email_old or not email_new: return
+    if not email_old or not email_new:
+        return
 
-    html_content = f"""
-    <html>
-      <body>
-        <p>Hello {old_person} and {new_person},</p>
-        <p>The <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> has been updated.</p>
-        <p><b>{new_person}</b> will now be presenting on {date} instead of {old_person}.</p>
-        <p>Please check the <a href="https://cnbxbsxr7ezak5cyfe4c5e.streamlit.app/">schedule</a> for details.</p>
-      </body>
-    </html>
-    """
-    msg = MIMEText(html_content, 'html')
-    msg['Subject'] = 'Meeting Schedule Reassignment'
-    msg['From'] = sender
-    msg['To'] = f"{email_old}, {email_new}"
-    
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender, password)
-            server.send_message(msg)
-    except Exception: pass
+    messages = []
+    for name, address, intro in (
+        (
+            new_person,
+            email_new,
+            f"You are now scheduled to present on {date}, "
+            f"taking over from {old_person}.",
+        ),
+        (
+            old_person,
+            email_old,
+            f"You are no longer scheduled to present on {date}. "
+            f"{new_person} will present instead.",
+        ),
+    ):
+        text_body = (
+            f"Hello {name},\n\n"
+            f"The schedule has been updated.\n\n"
+            f"{intro}\n\n"
+            f"The full schedule is here:\n"
+            f"{SCHEDULE_URL}\n"
+        )
+        html_body = f"""\
+<html>
+  <body>
+    <p>Hello {name},</p>
+    <p>The schedule has been updated.</p>
+    <p>{intro}</p>
+    <p>The full schedule is here:<br>
+       <a href="{SCHEDULE_URL}">{SCHEDULE_URL}</a></p>
+  </body>
+</html>
+"""
+        messages.append(
+            build_message(
+                sender=sender,
+                recipient=address,
+                subject=f"TI meeting: schedule change for {date}",
+                text_body=text_body,
+                html_body=html_body,
+                reply_to=reply_to,
+            )
+        )
+
+    _deliver(messages)
 
 
 # --- INITIALIZE DATA ---

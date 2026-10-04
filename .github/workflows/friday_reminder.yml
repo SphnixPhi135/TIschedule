@@ -25,4 +25,7 @@ jobs:
         env:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          # Optional: a work address replies should go to. Falls back to
+          # DEFAULT_REPLY_TO in mailer.py when the secret is not set.
+          REPLY_TO: ${{ secrets.REPLY_TO }}
         run: python reminder.py
