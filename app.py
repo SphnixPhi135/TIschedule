@@ -17,6 +17,8 @@ hide_elements_css = """
     /* Hide the Streamlit Cloud floating developer badge */
     .viewerBadge_container {display: none !important;}
     .viewerBadge_link {display: none !important;}
+    /* Hide the floating Streamlit profile image badge */
+    div[class*="profileContainer"] {display: none !important;}
 </style>
 """
 st.markdown(hide_elements_css, unsafe_allow_html=True)
