@@ -290,8 +290,7 @@ if upcoming_row is not None:
     st.markdown("---")
 
 # --- 3. SWAP OR REASSIGN TOOL ---
-st.subheader("🔄 Swap or Reassign Presentation Slots")
-with st.expander("Click here to change a slot or swap with another member", expanded=False):
+with st.expander("Swap or Reassign Presentation Slots", expanded=False):
     
     # 1. Parse schedule to find all valid upcoming slots
     all_slot_entries = []
@@ -477,8 +476,7 @@ except AttributeError:
 st.table(styled_df)
 
 # --- 5. PIs AND MEMBERS ---
-st.subheader("🔬 PIs and Members")
-with st.expander("View Color Legend, Presenters, and Technicians", expanded=False):
+with st.expander("View PIs and Members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
         cols = st.columns(3)
