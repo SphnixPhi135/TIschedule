@@ -289,30 +289,7 @@ if upcoming_row is not None:
             )
     st.markdown("---")
 
-# --- 3. PI LEGEND & ROSTER ---
-st.subheader("🔬 PI Groups & Lab Roster")
-with st.expander("View Color Legend, Presenters, and Technicians", expanded=False):
-    pi_names = list(PI_COLORS.keys())
-    for i in range(0, len(pi_names), 3):
-        cols = st.columns(3)
-        for j in range(3):
-            if i + j < len(pi_names):
-                pi = pi_names[i + j]
-                colors = PI_COLORS[pi]
-                with cols[j]:
-                    st.markdown(
-                        f'<div style="background-color: {colors["bg"]}; color: {colors["text"]}; '
-                        f'padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 10px;">'
-                        f'{pi}</div>',
-                        unsafe_allow_html=True
-                    )
-                    pres = PRESENTERS.get(pi, [])
-                    tech = TECHNICIANS.get(pi, [])
-                    if pres: st.markdown("**Presenters:**\n" + "\n".join([f"- {p}" for p in pres]))
-                    if tech: st.markdown("**Technicians:**\n" + "\n".join([f"- {t}" for t in tech]))
-                    st.write("")
-
-# --- 4. SWAP OR REASSIGN TOOL ---
+# --- 3. SWAP OR REASSIGN TOOL ---
 st.subheader("🔄 Swap or Reassign Presentation Slots")
 with st.expander("Click here to change a slot or swap with another member", expanded=False):
     
@@ -415,7 +392,7 @@ with st.expander("Click here to change a slot or swap with another member", expa
                             st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
                             st.rerun()
 
-# --- 5. STYLED TABLE ---
+# --- 4. STYLED TABLE ---
 st.subheader("📋 Current Schedule")
 
 display_df = df.copy()
@@ -498,3 +475,26 @@ except AttributeError:
     styled_df = display_df.style.applymap(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 
 st.table(styled_df)
+
+# --- 5. PIs AND MEMBERS ---
+st.subheader("🔬 PIs and Members")
+with st.expander("View Color Legend, Presenters, and Technicians", expanded=False):
+    pi_names = list(PI_COLORS.keys())
+    for i in range(0, len(pi_names), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(pi_names):
+                pi = pi_names[i + j]
+                colors = PI_COLORS[pi]
+                with cols[j]:
+                    st.markdown(
+                        f'<div style="background-color: {colors["bg"]}; color: {colors["text"]}; '
+                        f'padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 10px;">'
+                        f'{pi}</div>',
+                        unsafe_allow_html=True
+                    )
+                    pres = PRESENTERS.get(pi, [])
+                    tech = TECHNICIANS.get(pi, [])
+                    if pres: st.markdown("**Presenters:**\n" + "\n".join([f"- {p}" for p in pres]))
+                    if tech: st.markdown("**Technicians:**\n" + "\n".join([f"- {t}" for t in tech]))
+                    st.write("")
