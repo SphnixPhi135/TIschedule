@@ -290,7 +290,7 @@ if upcoming_row is not None:
     st.markdown("---")
 
 # --- 3. SWAP OR REASSIGN TOOL ---
-with st.expander("Swap or Reassign Presentation Slots", expanded=False):
+with st.expander("🔄 Swap or Reassign Presentation Slots", expanded=False):
     
     # 1. Parse schedule to find all valid upcoming slots
     all_slot_entries = []
