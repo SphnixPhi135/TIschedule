@@ -230,7 +230,7 @@ if "df" not in st.session_state:
 
 df = st.session_state.df
 
-st.title("📅 Tumor Immunology Meeting Presentation Schedule")
+st.title("Tumor Immunology Meeting Presentation Schedule")
 st.write("") # Small spacer
 
 # --- 2. NEXT MEETING HIGHLIGHT BANNER ---
@@ -256,7 +256,7 @@ for idx, row in df.iterrows():
             pass
 
 if upcoming_row is not None:
-    st.markdown(f"### 📢 Next Meeting: **{upcoming_row['Date']}**")
+    st.markdown(f"### Next Meeting: **{upcoming_row['Date']}**")
     banner_cols = st.columns(4)
     slots = ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]
     slot_titles = ["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"]
@@ -290,7 +290,7 @@ if upcoming_row is not None:
     st.markdown("---")
 
 # --- 3. SWAP OR REASSIGN TOOL ---
-with st.expander("🔄 Swap or Reassign Presentation Slots", expanded=False):
+with st.expander("Swap or Reassign Presentation Slots", expanded=False):
     
     # 1. Parse schedule to find all valid upcoming slots
     all_slot_entries = []
@@ -392,7 +392,7 @@ with st.expander("🔄 Swap or Reassign Presentation Slots", expanded=False):
                             st.rerun()
 
 # --- 4. STYLED TABLE ---
-st.subheader("📋 Current Schedule")
+st.subheader("Current Schedule")
 
 display_df = df.copy()
 
