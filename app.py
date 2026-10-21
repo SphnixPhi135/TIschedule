@@ -438,7 +438,7 @@ except AttributeError:
 st.table(styled_df)
 
 # --- 5. PIs AND MEMBERS ---
-with st.expander("View PIs and Members", expanded=False):
+with st.expander("PIs and Members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
         cols = st.columns(3)
