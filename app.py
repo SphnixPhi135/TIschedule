@@ -400,43 +400,6 @@ display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0
 if "Notes" in display_df.columns:
     display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
 
-# 1. Load Pending data early so we can inject it into the main schedule
-try:
-    df_pending = conn.read(worksheet="Pending", ttl=0)
-    df_pending = df_pending.dropna(how='all')
-except Exception:
-    df_pending = pd.DataFrame(columns=["Name", "Date"])
-
-# 2. Map missed presentations by their exact calendar dates to fix formatting mismatches
-missed_mapping = {}
-if not df_pending.empty:
-    for idx, row in df_pending.iterrows():
-        m_date = str(row.get("Date", "")).strip()
-        m_name = str(row.get("Name", "")).strip()
-        if m_date and m_name:
-            try:
-                # Convert "07-Sep-2026" or "7-Sep-2026" into a standardized date object
-                parsed_date = pd.to_datetime(m_date).date()
-                
-                # Use a Set to automatically remove duplicate names for the same date
-                if parsed_date not in missed_mapping:
-                    missed_mapping[parsed_date] = set()
-                missed_mapping[parsed_date].add(m_name)
-            except Exception:
-                pass
-
-# 3. Dynamically add the new "Missed Presentations" column to the display dataframe
-def get_missed_names(date_val):
-    date_str = str(date_val).strip()
-    try:
-        # Append the current year to the main schedule's "7-Sep" string so it matches the objects
-        parsed_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-        return ", ".join(sorted(list(missed_mapping.get(parsed_date, []))))
-    except Exception:
-        return ""
-
-display_df["Missed Presentations"] = display_df["Date"].apply(get_missed_names)
-
 display_df = display_df.rename(columns={
     "Slot 1": "Slot 1 (30 min)",
     "Slot 2": "Slot 2 (5 min)",
@@ -444,7 +407,7 @@ display_df = display_df.rename(columns={
     "Slot 4": "Slot 4 (5 min)"
 })
 
-# 4. Reorder the columns to put Missed Presentations before Notes
+# Reorder the columns
 new_column_order = [
     "Week", 
     "Date", 
@@ -452,7 +415,6 @@ new_column_order = [
     "Slot 2 (5 min)", 
     "Slot 3 (5 min)", 
     "Slot 4 (5 min)", 
-    "Missed Presentations"
 ]
 # Only add 'Notes' if it exists in the original sheet
 if "Notes" in display_df.columns:
