@@ -1,3 +1,5 @@
+import hmac
+
 import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
@@ -400,12 +402,31 @@ display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0
 if "Notes" in display_df.columns:
     display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
 
-# 1. Load Pending data early so we can inject it into the main schedule
-try:
-    df_pending = conn.read(worksheet="Pending", ttl=0)
-    df_pending = df_pending.dropna(how='all')
-except Exception:
-    df_pending = pd.DataFrame(columns=["Name", "Date"])
+# The Missed Presentations column is only for the admin. The password box
+# lives at the bottom of the page, but its value is already in session_state
+# when the script reruns after it is submitted, so it can be checked here.
+def is_admin():
+    entered = st.session_state.get("admin_password", "")
+    try:
+        expected = st.secrets.get("ADMIN_PASSWORD")
+    except Exception:
+        expected = None
+    # Fail closed: no secret configured means nobody sees the column.
+    if not entered or not expected:
+        return False
+    return hmac.compare_digest(entered.encode(), str(expected).encode())
+
+show_missed = is_admin()
+
+# 1. Load Pending data early so we can inject it into the main schedule.
+# Regular visitors never trigger the read, so the data never reaches them.
+df_pending = pd.DataFrame(columns=["Name", "Date"])
+if show_missed:
+    try:
+        df_pending = conn.read(worksheet="Pending", ttl=0)
+        df_pending = df_pending.dropna(how='all')
+    except Exception:
+        pass
 
 # 2. Map missed presentations by their exact calendar dates to fix formatting mismatches
 missed_mapping = {}
@@ -435,7 +456,8 @@ def get_missed_names(date_val):
     except Exception:
         return ""
 
-display_df["Missed Presentations"] = display_df["Date"].apply(get_missed_names)
+if show_missed:
+    display_df["Missed Presentations"] = display_df["Date"].apply(get_missed_names)
 
 display_df = display_df.rename(columns={
     "Slot 1": "Slot 1 (30 min)",
@@ -452,8 +474,9 @@ new_column_order = [
     "Slot 2 (5 min)", 
     "Slot 3 (5 min)", 
     "Slot 4 (5 min)", 
-    "Missed Presentations"
 ]
+if show_missed:
+    new_column_order.append("Missed Presentations")
 # Only add 'Notes' if it exists in the original sheet
 if "Notes" in display_df.columns:
     new_column_order.append("Notes")
@@ -496,3 +519,12 @@ with st.expander("View PIs and Members", expanded=False):
                     if pres: st.markdown("**Presenters:**\n" + "\n".join([f"- {p}" for p in pres]))
                     if tech: st.markdown("**Technicians:**\n" + "\n".join([f"- {t}" for t in tech]))
                     st.write("")
+
+# --- 6. ADMIN ---
+st.markdown("---")
+with st.expander("Admin", expanded=False):
+    st.text_input("Password", type="password", key="admin_password")
+    if show_missed:
+        st.caption("Missed Presentations column is visible in the schedule.")
+    elif st.session_state.get("admin_password"):
+        st.error("Incorrect password.")
