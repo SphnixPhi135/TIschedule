@@ -4,8 +4,8 @@ The reminders can be sent from the HPC through Amsterdam UMC's own mail relay,
 from `v.a.melogallegos@amsterdamumc.nl`. They then arrive as internal mail,
 which is far less likely to land in junk than mail from the Gmail account.
 
-The HPC pulls the latest code from GitHub each Friday and runs
-`reminder.py`. GitHub only stores the code.
+The job runs on **worker 10**: each Friday it pulls the latest code from
+GitHub and runs `reminder.py`. GitHub only stores the code.
 
 Only the Friday reminders move. The swap and reassignment emails are sent by
 the Streamlit app, which runs on Streamlit's servers outside the hospital
@@ -17,27 +17,36 @@ Send them something like this:
 
 > Hello,
 >
-> I'd like to run a small weekly script on the HPC that sends about four
+> I'd like to run a small weekly script on worker 10 that sends about four
 > reminder emails every Friday morning to colleagues at @amsterdamumc.nl, for
 > our group's meeting schedule. Could you tell me:
 >
-> 1. Is there an SMTP relay I can use from the HPC? What is its host name and
+> 1. Is there an SMTP relay I can use from worker 10? What is its host name and
 >    port, and does it support STARTTLS?
 > 2. Can mail sent through it use my address, v.a.melogallegos@amsterdamumc.nl,
 >    as the sender, so that it passes the domain's SPF/DMARC checks? If it
 >    needs a login, could I get a service account rather than using my own
 >    password?
-> 3. Can I schedule a weekly job, with `cron` on a login node or `scrontab`?
-> 4. Can that job reach the internet (HTTPS to docs.google.com and
+> 3. Can I schedule a weekly job on worker 10 with `cron`? If not, can I use
+>    `scrontab` pinned to worker 10?
+> 4. Can worker 10 reach the internet (HTTPS to docs.google.com and
 >    github.com)? The script reads a Google Sheet and updates itself from
 >    GitHub.
 >
 > Thank you,
 > Vinicio
 
-## 2. One-time setup on the HPC
+## 2. One-time setup on worker 10
 
-Log in to the HPC, then:
+Log in to worker 10. First check it can do the job (this sends nothing):
+
+```bash
+hostname                                     # confirm you are on worker 10
+crontab -l                                   # "no crontab for ..." is fine; "not allowed" means cron is off here
+curl -sI https://docs.google.com | head -1   # any "HTTP/..." line means internet works
+```
+
+Then, still on worker 10:
 
 ```bash
 # Get the code
@@ -76,19 +85,27 @@ both commands say so and send nothing. Test in a week with presenters.
 
 ## 4. Schedule it
 
-Every Friday at 09:00 (HPC local time). Use whichever one HPC support allows.
+Every Friday at 09:00 (local time on worker 10).
 
-**cron** — run `crontab -e` and add:
+**cron** (preferred) — while logged in to **worker 10**, run `crontab -e` and
+add:
 
 ```
 0 9 * * 5 $HOME/TIschedule/hpc/run_reminder.sh
 ```
 
-**scrontab** (Slurm) — run `scrontab -e` and add:
+A crontab belongs to the machine it was edited on. Running `crontab -e` on
+the login node or another worker would schedule it there instead, so check
+`hostname` first.
+
+**scrontab** (Slurm) — only if cron is not allowed on worker 10. Run
+`scrontab -e` and add these lines, with `--nodelist` set to worker 10's
+name as `hostname` prints it, so the job always lands on worker 10:
 
 ```
 #SCRON --time=00:10:00
 #SCRON --job-name=ti-reminder
+#SCRON --nodelist=REPLACE_WITH_WORKER_10_HOSTNAME
 0 9 * * 5 $HOME/TIschedule/hpc/run_reminder.sh
 ```
 
@@ -114,9 +131,10 @@ Scheduled runs write to `~/tischedule-reminder.log`:
 tail -n 20 ~/tischedule-reminder.log
 ```
 
-Each run starts with a dated `===` line and ends with
+Each run starts with a dated `===` line naming the machine it ran on (check
+it says worker 10), and ends with
 `=== finished with status 0 ===` when everything was sent. Status `1` means
 something failed, and the lines above it say what.
 
-If the HPC can't reach GitHub on a Friday, the log shows a warning and the
+If worker 10 can't reach GitHub on a Friday, the log shows a warning and the
 reminders still go out with the last copy of the code.
