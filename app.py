@@ -3,6 +3,7 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
+from calendar_export import build_ics, people_with_upcoming_talks, upcoming_talks
 from mailer import SCHEDULE_URL, build_message, send_messages
 
 st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
@@ -36,19 +37,19 @@ PI_COLORS = {
 }
 
 PRESENTERS = {
-    "Yvette": ["Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa"],
+    "Yvette": ["Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa", "Megan"],
     "Juan": ["Ming", "Konrad", "Leo"],
     "Sandra": ["Remi", "Stan", "Lisi"],
     "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
     "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
-    "Lotte": ["Lotte"],
+    "Lotte": ["Lotte", "Ola"],
     "Marjolein": ["Irene", "Leoni", "Janneke"]
 }
 
 TECHNICIANS = {
-    "Yvette": ["Laura", "Katarina", "Megan"],
+    "Yvette": ["Laura", "Katarina"],
     "Juan": ["Marlous"],
     "Sandra": ["Alba"],
     "Joke": ["Joeke"],
@@ -391,7 +392,38 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
                             st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
                             st.rerun()
 
-# --- 4. STYLED TABLE ---
+# --- 4. ADD TO CALENDAR ---
+with st.expander("Add My Presentations to My Calendar", expanded=False):
+    calendar_rows = df.to_dict("records")
+    calendar_today = datetime.now().date()
+    calendar_people = people_with_upcoming_talks(calendar_rows, calendar_today)
+
+    if not calendar_people:
+        st.write("There are no upcoming presentations in the schedule.")
+    else:
+        calendar_person = st.selectbox(
+            "Choose your name:",
+            ["-- Choose a member --"] + calendar_people,
+            key="calendar_person",
+        )
+        if calendar_person != "-- Choose a member --":
+            talks = upcoming_talks(calendar_rows, calendar_person, calendar_today)
+            st.markdown("\n".join(
+                f"- {date.strftime('%A %d %B %Y')}: {label}" for date, label, _ in talks
+            ))
+            st.download_button(
+                "Download calendar file (.ics)",
+                data=build_ics(calendar_person, talks).encode("utf-8"),
+                file_name=f"TI_meeting_{calendar_person.replace(' ', '_')}.ics",
+                mime="text/calendar",
+                key="calendar_download",
+            )
+            st.caption(
+                "Open the downloaded file to add these dates to Outlook, Google "
+                "Calendar or Apple Calendar. If the schedule changes, download it again."
+            )
+
+# --- 5. STYLED TABLE ---
 st.subheader("Current Schedule")
 
 display_df = df.copy()
@@ -437,7 +469,7 @@ except AttributeError:
 
 st.table(styled_df)
 
-# --- 5. PIs AND MEMBERS ---
+# --- 6. PIs AND MEMBERS ---
 with st.expander("PIs and Members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
