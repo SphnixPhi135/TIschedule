@@ -6,7 +6,7 @@ from datetime import datetime
 from calendar_export import build_ics, infer_dates, people_with_upcoming_talks, upcoming_talks
 from mailer import SCHEDULE_URL, build_message, send_messages
 
-st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
+st.set_page_config(page_title="Tumor Immunology meeting schedule", page_icon="🦠", layout="wide")
 
 # --- HIDE STREAMLIT BRANDING & FLOATING BADGES ---
 hide_elements_css = """
@@ -230,7 +230,7 @@ if "df" not in st.session_state:
 
 df = st.session_state.df
 
-st.title("Tumor Immunology Meeting Presentation Schedule")
+st.title("Tumor Immunology meeting presentation schedule")
 st.write("") # Small spacer
 
 # --- 2. NEXT MEETING HIGHLIGHT BANNER ---
@@ -259,7 +259,7 @@ for idx, row in df.iterrows():
     break
 
 if upcoming_row is not None:
-    st.markdown(f"### Next Meeting: **{upcoming_row['Date']}**")
+    st.markdown(f"### Next meeting: **{upcoming_row['Date']}**")
     banner_cols = st.columns(4)
     slots = ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]
     slot_titles = ["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"]
@@ -293,7 +293,7 @@ if upcoming_row is not None:
     st.markdown("---")
 
 # --- 3. SWAP OR REASSIGN TOOL ---
-with st.expander("Swap or Reassign Presentation Slots", expanded=False):
+with st.expander("Swap or reassign presentation slots", expanded=False):
     
     # 1. Parse schedule to find all valid upcoming slots
     all_slot_entries = []
@@ -326,7 +326,7 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
     else:
         # --- STEP 1: Select Presenter ---
         sorted_presenters = sorted(list(scheduled_people))
-        selected_presenter = st.selectbox("1. Select Presenter to modify:", ["-- Choose a member --"] + sorted_presenters)
+        selected_presenter = st.selectbox("1. Select presenter to modify:", ["-- Choose a member --"] + sorted_presenters)
 
         if selected_presenter != "-- Choose a member --":
             
@@ -353,7 +353,7 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
                     else:
                         choice_b = st.selectbox("4. Select the slot to swap with:", other_slots)
 
-                        if st.button("Confirm Swap", type="primary"):
+                        if st.button("Confirm swap", type="primary"):
                             item_b = next(e for e in all_slot_entries if e["label"] == choice_b)
                             
                             # Execute Swap
@@ -380,7 +380,7 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
                     else:
                         choice_b = st.selectbox("4. Select the new presenter:", unscheduled_sorted)
 
-                        if st.button("Confirm Reassignment", type="primary"):
+                        if st.button("Confirm reassignment", type="primary"):
                             new_person = choice_b
                             
                             # Execute Reassignment
@@ -392,7 +392,7 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
                             st.rerun()
 
 # --- 4. ADD TO CALENDAR ---
-with st.expander("Add My Presentations to My Calendar", expanded=False):
+with st.expander("Add my presentations to my calendar", expanded=False):
     calendar_rows = df.to_dict("records")
     calendar_today = datetime.now().date()
     calendar_people = people_with_upcoming_talks(calendar_rows, calendar_today)
@@ -462,7 +462,7 @@ def styled_schedule(source_df):
         return display_df.style.applymap(style_cells, subset=SLOT_COLUMNS)
 
 
-st.subheader("Current Schedule")
+st.subheader("Current schedule")
 st.table(styled_schedule(df))
 
 # --- 6. PAST SCHEDULES ---
@@ -470,7 +470,7 @@ st.table(styled_schedule(df))
 # archived, add its tab name here, newest first.
 ARCHIVE_TABS = ["Fall 2026 (archive)"]
 
-with st.expander("Past Schedules", expanded=False):
+with st.expander("Past schedules", expanded=False):
     archive_labels = {tab.replace(" (archive)", ""): tab for tab in ARCHIVE_TABS}
     if len(archive_labels) == 1:
         archive_label = next(iter(archive_labels))
@@ -490,7 +490,7 @@ with st.expander("Past Schedules", expanded=False):
         st.table(styled_schedule(archive_df))
 
 # --- 7. PIs AND MEMBERS ---
-with st.expander("PIs and Members", expanded=False):
+with st.expander("PIs and members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
         cols = st.columns(3)
