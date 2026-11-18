@@ -3,7 +3,7 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
-from calendar_export import build_ics, people_with_upcoming_talks, upcoming_talks
+from calendar_export import build_ics, infer_dates, people_with_upcoming_talks, upcoming_talks
 from mailer import SCHEDULE_URL, build_message, send_messages
 
 st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
@@ -33,7 +33,8 @@ PI_COLORS = {
     "Jan": {"bg": "#996600", "text": "white"},
     "Tanja": {"bg": "#00B0F0", "text": "black"},
     "Lotte": {"bg": "#7030A0", "text": "white"},
-    "Marjolein": {"bg": "#D81B60", "text": "white"}
+    "Marjolein": {"bg": "#D81B60", "text": "white"},
+    "New PI": {"bg": "#1F4E79", "text": "white"}  # rename once the PI's name is confirmed
 }
 
 PRESENTERS = {
@@ -45,7 +46,8 @@ PRESENTERS = {
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
     "Lotte": ["Lotte", "Ola"],
-    "Marjolein": ["Irene", "Leoni", "Janneke"]
+    "Marjolein": ["Irene", "Leoni", "Janneke"],
+    "New PI": ["Marije"]
 }
 
 TECHNICIANS = {
@@ -236,25 +238,28 @@ st.write("") # Small spacer
 
 # --- 2. NEXT MEETING HIGHLIGHT BANNER ---
 current_date = datetime.now().date()
-current_year = current_date.year
+# The sheet shows dates without a year ("11-Jan"). Work the year out from
+# row order, so a schedule that runs past New Year is read correctly.
+row_dates = dict(zip(df.index, infer_dates(df["Date"].tolist(), current_date)))
 upcoming_row = None
 
 # Find the first row that hasn't passed yet
 for idx, row in df.iterrows():
-    if pd.notna(row.get('Date')):
-        date_str = str(row.get('Date', "")).strip()
-        
-        # Skip if meeting is cancelled
-        if 'cancel' in str(row.get('Notes', '')).lower():
-            continue
-            
-        try:
-            row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-            if row_date >= current_date:
-                upcoming_row = row
-                break
-        except ValueError:
-            pass
+    row_date = row_dates.get(idx)
+    if row_date is None or row_date < current_date:
+        continue
+
+    # Skip if meeting is cancelled
+    if 'cancel' in str(row.get('Notes', '')).lower():
+        continue
+
+    # Skip rows with nobody presenting (holidays, no meeting)
+    if not any(str(row.get(s, "")).strip() not in ("", "nan", "None")
+               for s in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]):
+        continue
+
+    upcoming_row = row
+    break
 
 if upcoming_row is not None:
     st.markdown(f"### Next Meeting: **{upcoming_row['Date']}**")
@@ -302,12 +307,9 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
             date_str = str(row.get('Date', "")).strip()
             
             # DATE LOCK LOGIC
-            try:
-                row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-                if row_date < current_date:
-                    continue  # Skip dates that have passed
-            except ValueError:
-                pass 
+            row_date = row_dates.get(idx)
+            if row_date is not None and row_date < current_date:
+                continue  # Skip dates that have passed
             
             # Skip dates marked as cancelled
             if 'cancel' in str(row.get('Notes', '')).lower():
