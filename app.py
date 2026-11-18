@@ -31,7 +31,6 @@ PI_COLORS = {
     "Joke": {"bg": "#FFC000", "text": "black"},
     "Febe": {"bg": "#70AD47", "text": "white"},
     "Jan": {"bg": "#996600", "text": "white"},
-    "Tanja": {"bg": "#00B0F0", "text": "black"},
     "Reina": {"bg": "#7030A0", "text": "white"},
     "Marjolein": {"bg": "#D81B60", "text": "white"},
     "Krijn": {"bg": "#1F4E79", "text": "white"}
@@ -44,7 +43,6 @@ PRESENTERS = {
     "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
     "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
-    "Tanja": ["Nora"],
     "Reina": ["Lotte", "Ola"],
     "Marjolein": ["Irene", "Leoni", "Janneke"],
     "Krijn": ["Marije"]
@@ -57,7 +55,6 @@ TECHNICIANS = {
     "Joke": ["Joeke"],
     "Febe": ["Susan", "Meggy"],
     "Jan": ["Daan"],
-    "Tanja": ["Linda"],
     "Reina": [],
     "Marjolein": ["Kiki", "Richard"]
 }
