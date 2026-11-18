@@ -3,6 +3,7 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
+from calendar_export import build_ics, infer_dates, people_with_upcoming_talks, upcoming_talks
 from mailer import SCHEDULE_URL, build_message, send_messages
 
 st.set_page_config(page_title="Tumor Immunology Meeting Schedule", page_icon="🦠", layout="wide")
@@ -32,23 +33,25 @@ PI_COLORS = {
     "Jan": {"bg": "#996600", "text": "white"},
     "Tanja": {"bg": "#00B0F0", "text": "black"},
     "Lotte": {"bg": "#7030A0", "text": "white"},
-    "Marjolein": {"bg": "#D81B60", "text": "white"}
+    "Marjolein": {"bg": "#D81B60", "text": "white"},
+    "New PI": {"bg": "#1F4E79", "text": "white"}  # rename once the PI's name is confirmed
 }
 
 PRESENTERS = {
-    "Yvette": ["Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa"],
+    "Yvette": ["Sofia", "Georgia", "Emma", "Vinicio", "Roos", "Mostafa", "Megan"],
     "Juan": ["Ming", "Konrad", "Leo"],
     "Sandra": ["Remi", "Stan", "Lisi"],
     "Joke": ["Hendrik", "Negisa", "Noah", "Caroline"],
     "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
-    "Lotte": ["Lotte"],
-    "Marjolein": ["Irene", "Leoni", "Janneke"]
+    "Lotte": ["Lotte", "Ola"],
+    "Marjolein": ["Irene", "Leoni", "Janneke"],
+    "New PI": ["Marije"]
 }
 
 TECHNICIANS = {
-    "Yvette": ["Laura", "Katarina", "Megan"],
+    "Yvette": ["Laura", "Katarina"],
     "Juan": ["Marlous"],
     "Sandra": ["Alba"],
     "Joke": ["Joeke"],
@@ -235,25 +238,28 @@ st.write("") # Small spacer
 
 # --- 2. NEXT MEETING HIGHLIGHT BANNER ---
 current_date = datetime.now().date()
-current_year = current_date.year
+# The sheet shows dates without a year ("11-Jan"). Work the year out from
+# row order, so a schedule that runs past New Year is read correctly.
+row_dates = dict(zip(df.index, infer_dates(df["Date"].tolist(), current_date)))
 upcoming_row = None
 
 # Find the first row that hasn't passed yet
 for idx, row in df.iterrows():
-    if pd.notna(row.get('Date')):
-        date_str = str(row.get('Date', "")).strip()
-        
-        # Skip if meeting is cancelled
-        if 'cancel' in str(row.get('Notes', '')).lower():
-            continue
-            
-        try:
-            row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-            if row_date >= current_date:
-                upcoming_row = row
-                break
-        except ValueError:
-            pass
+    row_date = row_dates.get(idx)
+    if row_date is None or row_date < current_date:
+        continue
+
+    # Skip if meeting is cancelled
+    if 'cancel' in str(row.get('Notes', '')).lower():
+        continue
+
+    # Skip rows with nobody presenting (holidays, no meeting)
+    if not any(str(row.get(s, "")).strip() not in ("", "nan", "None")
+               for s in ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]):
+        continue
+
+    upcoming_row = row
+    break
 
 if upcoming_row is not None:
     st.markdown(f"### Next Meeting: **{upcoming_row['Date']}**")
@@ -301,12 +307,9 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
             date_str = str(row.get('Date', "")).strip()
             
             # DATE LOCK LOGIC
-            try:
-                row_date = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y").date()
-                if row_date < current_date:
-                    continue  # Skip dates that have passed
-            except ValueError:
-                pass 
+            row_date = row_dates.get(idx)
+            if row_date is not None and row_date < current_date:
+                continue  # Skip dates that have passed
             
             # Skip dates marked as cancelled
             if 'cancel' in str(row.get('Notes', '')).lower():
@@ -391,7 +394,38 @@ with st.expander("Swap or Reassign Presentation Slots", expanded=False):
                             st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
                             st.rerun()
 
-# --- 4. STYLED TABLE ---
+# --- 4. ADD TO CALENDAR ---
+with st.expander("Add My Presentations to My Calendar", expanded=False):
+    calendar_rows = df.to_dict("records")
+    calendar_today = datetime.now().date()
+    calendar_people = people_with_upcoming_talks(calendar_rows, calendar_today)
+
+    if not calendar_people:
+        st.write("There are no upcoming presentations in the schedule.")
+    else:
+        calendar_person = st.selectbox(
+            "Choose your name:",
+            ["-- Choose a member --"] + calendar_people,
+            key="calendar_person",
+        )
+        if calendar_person != "-- Choose a member --":
+            talks = upcoming_talks(calendar_rows, calendar_person, calendar_today)
+            st.markdown("\n".join(
+                f"- {date.strftime('%A %d %B %Y')}: {label}" for date, label, _ in talks
+            ))
+            st.download_button(
+                "Download calendar file (.ics)",
+                data=build_ics(calendar_person, talks).encode("utf-8"),
+                file_name=f"TI_meeting_{calendar_person.replace(' ', '_')}.ics",
+                mime="text/calendar",
+                key="calendar_download",
+            )
+            st.caption(
+                "Open the downloaded file to add these dates to Outlook, Google "
+                "Calendar or Apple Calendar. If the schedule changes, download it again."
+            )
+
+# --- 5. STYLED TABLE ---
 st.subheader("Current Schedule")
 
 display_df = df.copy()
@@ -437,7 +471,7 @@ except AttributeError:
 
 st.table(styled_df)
 
-# --- 5. PIs AND MEMBERS ---
+# --- 6. PIs AND MEMBERS ---
 with st.expander("PIs and Members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
