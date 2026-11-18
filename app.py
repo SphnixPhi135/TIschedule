@@ -32,7 +32,7 @@ PI_COLORS = {
     "Febe": {"bg": "#70AD47", "text": "white"},
     "Jan": {"bg": "#996600", "text": "white"},
     "Tanja": {"bg": "#00B0F0", "text": "black"},
-    "Lotte": {"bg": "#7030A0", "text": "white"},
+    "Reina": {"bg": "#7030A0", "text": "white"},
     "Marjolein": {"bg": "#D81B60", "text": "white"},
     "Krijn": {"bg": "#1F4E79", "text": "white"}
 }
@@ -45,7 +45,7 @@ PRESENTERS = {
     "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
-    "Lotte": ["Lotte", "Ola"],
+    "Reina": ["Lotte", "Ola"],
     "Marjolein": ["Irene", "Leoni", "Janneke"],
     "Krijn": ["Marije"]
 }
@@ -58,7 +58,7 @@ TECHNICIANS = {
     "Febe": ["Susan", "Meggy"],
     "Jan": ["Daan"],
     "Tanja": ["Linda"],
-    "Lotte": [],
+    "Reina": [],
     "Marjolein": ["Kiki", "Richard"]
 }
 
