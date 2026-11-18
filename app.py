@@ -32,9 +32,9 @@ PI_COLORS = {
     "Febe": {"bg": "#70AD47", "text": "white"},
     "Jan": {"bg": "#996600", "text": "white"},
     "Tanja": {"bg": "#00B0F0", "text": "black"},
-    "Lotte": {"bg": "#7030A0", "text": "white"},
+    "Reina": {"bg": "#7030A0", "text": "white"},
     "Marjolein": {"bg": "#D81B60", "text": "white"},
-    "New PI": {"bg": "#1F4E79", "text": "white"}  # rename once the PI's name is confirmed
+    "Krijn": {"bg": "#1F4E79", "text": "white"}
 }
 
 PRESENTERS = {
@@ -45,9 +45,9 @@ PRESENTERS = {
     "Febe": ["Sofie", "Wies", "Maud"],
     "Jan": ["Niamh"],
     "Tanja": ["Nora"],
-    "Lotte": ["Lotte", "Ola"],
+    "Reina": ["Lotte", "Ola"],
     "Marjolein": ["Irene", "Leoni", "Janneke"],
-    "New PI": ["Marije"]
+    "Krijn": ["Marije"]
 }
 
 TECHNICIANS = {
@@ -58,7 +58,7 @@ TECHNICIANS = {
     "Febe": ["Susan", "Meggy"],
     "Jan": ["Daan"],
     "Tanja": ["Linda"],
-    "Lotte": [],
+    "Reina": [],
     "Marjolein": ["Kiki", "Richard"]
 }
 
@@ -426,35 +426,8 @@ with st.expander("Add My Presentations to My Calendar", expanded=False):
             )
 
 # --- 5. STYLED TABLE ---
-st.subheader("Current Schedule")
+SLOT_COLUMNS = ["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"]
 
-display_df = df.copy()
-
-display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
-if "Notes" in display_df.columns:
-    display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
-
-display_df = display_df.rename(columns={
-    "Slot 1": "Slot 1 (30 min)",
-    "Slot 2": "Slot 2 (5 min)",
-    "Slot 3": "Slot 3 (5 min)",
-    "Slot 4": "Slot 4 (5 min)"
-})
-
-# Reorder the columns
-new_column_order = [
-    "Week", 
-    "Date", 
-    "Slot 1 (30 min)", 
-    "Slot 2 (5 min)", 
-    "Slot 3 (5 min)", 
-    "Slot 4 (5 min)", 
-]
-# Only add 'Notes' if it exists in the original sheet
-if "Notes" in display_df.columns:
-    new_column_order.append("Notes")
-
-display_df = display_df[new_column_order]
 
 def style_cells(val):
     pi = MEMBER_PI_MAP.get(str(val).strip())
@@ -464,14 +437,62 @@ def style_cells(val):
         return f"background-color: {bg}; color: {text}; font-weight: 500;"
     return ""
 
-try:
-    styled_df = display_df.style.map(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
-except AttributeError:
-    styled_df = display_df.style.applymap(style_cells, subset=["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"])
 
-st.table(styled_df)
+def styled_schedule(source_df):
+    """Format a schedule tab for display: tidy columns, colour by PI group."""
+    display_df = source_df.copy()
 
-# --- 6. PIs AND MEMBERS ---
+    display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
+    if "Notes" in display_df.columns:
+        display_df["Notes"] = display_df["Notes"].fillna("").astype(str).replace(["nan", "None"], "")
+
+    display_df = display_df.rename(columns={
+        "Slot 1": "Slot 1 (30 min)",
+        "Slot 2": "Slot 2 (5 min)",
+        "Slot 3": "Slot 3 (5 min)",
+        "Slot 4": "Slot 4 (5 min)"
+    })
+
+    # Reorder the columns; only add 'Notes' if it exists in the sheet
+    column_order = ["Week", "Date"] + SLOT_COLUMNS
+    if "Notes" in display_df.columns:
+        column_order.append("Notes")
+    display_df = display_df[column_order]
+
+    try:
+        return display_df.style.map(style_cells, subset=SLOT_COLUMNS)
+    except AttributeError:
+        return display_df.style.applymap(style_cells, subset=SLOT_COLUMNS)
+
+
+st.subheader("Current Schedule")
+st.table(styled_schedule(df))
+
+# --- 6. PAST SCHEDULES ---
+# Archived schedules are tabs in the same spreadsheet. When a schedule is
+# archived, add its tab name here, newest first.
+ARCHIVE_TABS = ["Fall 2026 (archive)"]
+
+with st.expander("Past Schedules", expanded=False):
+    archive_labels = {tab.replace(" (archive)", ""): tab for tab in ARCHIVE_TABS}
+    if len(archive_labels) == 1:
+        archive_label = next(iter(archive_labels))
+    else:
+        archive_label = st.selectbox("Choose a schedule:", list(archive_labels), key="archive_tab")
+
+    try:
+        archive_df = conn.read(worksheet=archive_labels[archive_label], ttl=600)
+        archive_df = archive_df.dropna(how='all')
+    except Exception:
+        archive_df = None
+
+    if archive_df is None or archive_df.empty:
+        st.write(f"The {archive_label} schedule could not be loaded.")
+    else:
+        st.markdown(f"**{archive_label}**")
+        st.table(styled_schedule(archive_df))
+
+# --- 7. PIs AND MEMBERS ---
 with st.expander("PIs and Members", expanded=False):
     pi_names = list(PI_COLORS.keys())
     for i in range(0, len(pi_names), 3):
