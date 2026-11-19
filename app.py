@@ -417,10 +417,6 @@ with st.expander("Add my presentations to my calendar", expanded=False):
                 mime="text/calendar",
                 key="calendar_download",
             )
-            st.caption(
-                "Open the downloaded file to add these dates to Outlook, Google "
-                "Calendar or Apple Calendar. If the schedule changes, download it again."
-            )
 
 # --- 5. STYLED TABLE ---
 SLOT_COLUMNS = ["Slot 1 (30 min)", "Slot 2 (5 min)", "Slot 3 (5 min)", "Slot 4 (5 min)"]
