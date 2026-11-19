@@ -3,11 +3,11 @@
 Standard library only, so it can be tested without Streamlit.
 
 The schedule sheet stores dates without a year ("11-Jan"). Rows are in
-chronological order, so the year is worked out from the order: the first
-row gets the year that puts it closest to today, and the year advances
-whenever the month goes backwards (December -> January). Assuming the
-current year instead would put a January-June schedule in the past when
-viewed in December.
+chronological order, so the year is worked out from the order: the year
+advances whenever the month goes backwards (December -> January), and the
+starting year is the one that makes the schedule's span cover today (see
+infer_dates). Assuming the current year instead would put a January-June
+schedule in the past when viewed in December.
 
 Events are all-day on the meeting date, because the meeting time is not
 recorded anywhere. Set MEETING_START and MEETING_END to make them timed.
@@ -39,30 +39,60 @@ ALARMS = [
 ]
 
 
+# A schedule still counts as the one running for this many days after its
+# last meeting, so a finished schedule reads as past rather than next year.
+_GRACE_DAYS = 30
+
+
 def infer_dates(date_strings, today):
     """Turn the sheet's "D-Mon" strings into dates, in row order.
+
+    The year of the first row is chosen so that the schedule's span
+    (first to last meeting) covers today. If none does, the nearest
+    upcoming span wins over a span that has already ended, unless the
+    ended one is clearly closer. Picking the year closest to today for the
+    first row alone would, late in a November-June schedule, move the whole
+    schedule to the following year.
 
     Returns a list the same length as date_strings, with None for any
     entry that is not a date.
     """
-    dates, year, prev_month = [], None, None
+    parsed = []
     for raw in date_strings:
         try:
             day_month = dt.datetime.strptime(str(raw).strip(), "%d-%b")
         except ValueError:
-            dates.append(None)
+            parsed.append(None)
             continue
-        month, day = day_month.month, day_month.day
-        if year is None:
-            year = min(
-                (today.year - 1, today.year, today.year + 1),
-                key=lambda y: abs((_safe_date(y, month, day) - today).days),
-            )
-        elif month < prev_month:
-            year += 1
-        prev_month = month
-        dates.append(_safe_date(year, month, day))
-    return dates
+        parsed.append((day_month.month, day_month.day))
+
+    if not any(parsed):
+        return [None] * len(parsed)
+
+    def dates_for(first_year):
+        dates, year, prev_month = [], first_year, None
+        for item in parsed:
+            if item is None:
+                dates.append(None)
+                continue
+            month, day = item
+            if prev_month is not None and month < prev_month:
+                year += 1
+            prev_month = month
+            dates.append(_safe_date(year, month, day))
+        return dates
+
+    def distance(dates):
+        known = [d for d in dates if d is not None]
+        start, end = known[0], known[-1] + dt.timedelta(days=_GRACE_DAYS)
+        if start <= today <= end:
+            return 0
+        if today < start:
+            return (start - today).days
+        return 2 * (today - end).days   # prefer an upcoming schedule
+
+    candidates = [dates_for(y) for y in (today.year - 1, today.year, today.year + 1)]
+    return min(candidates, key=distance)
 
 
 def _safe_date(year, month, day):

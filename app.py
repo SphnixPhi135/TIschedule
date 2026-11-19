@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
-from datetime import datetime
+from datetime import date, datetime
 
 from calendar_export import build_ics, infer_dates, people_with_upcoming_talks, upcoming_talks
 from mailer import SCHEDULE_URL, build_message, send_messages
@@ -437,7 +437,7 @@ def style_cells(val):
 
 def styled_schedule(source_df):
     """Format a schedule tab for display: tidy columns, colour by PI group."""
-    display_df = source_df.copy()
+    display_df = source_df.reset_index(drop=True)
 
     display_df["Week"] = pd.to_numeric(display_df["Week"], errors='coerce').fillna(0).astype(int).astype(str).replace("0", "")
     if "Notes" in display_df.columns:
@@ -462,32 +462,104 @@ def styled_schedule(source_df):
         return display_df.style.applymap(style_cells, subset=SLOT_COLUMNS)
 
 
+# A meeting moves from the current schedule to "Past schedules" the day
+# after it takes place. The sheet itself is not changed.
+past_rows = [idx for idx in df.index
+             if row_dates.get(idx) is not None and row_dates[idx] < current_date]
+
 st.subheader("Current schedule")
-st.table(styled_schedule(df))
+upcoming_df = df.drop(index=past_rows)
+if upcoming_df.empty:
+    st.write("There are no upcoming meetings in the current schedule.")
+else:
+    st.table(styled_schedule(upcoming_df))
 
 # --- 6. PAST SCHEDULES ---
-# Archived schedules are tabs in the same spreadsheet. When a schedule is
-# archived, add its tab name here, newest first.
+# Past schedules are grouped by semester: Spring is January to July, Fall is
+# August to December. Weeks that have passed in the current schedule appear
+# here on their own. Older schedules are tabs in the same spreadsheet; when
+# one is archived, add its tab name here (named like "Fall 2026 (archive)").
 ARCHIVE_TABS = ["Fall 2026 (archive)"]
+SEASONS = ("Spring", "Fall")
+
+
+def semester_label(meeting_date):
+    season = "Spring" if meeting_date.month <= 7 else "Fall"
+    return f"{season} {meeting_date.year}"
+
+
+def semester_sort_key(label):
+    """(year, season) so labels sort in time order; unknown labels last."""
+    try:
+        season, year = label.split()
+        return (int(year), SEASONS.index(season))
+    except ValueError:
+        return (0, 0)
+
+
+def semester_reference_date(label):
+    """A date inside the semester, used to work out the year of its rows."""
+    season, year = label.split()
+    if season not in SEASONS:
+        raise ValueError(label)
+    return date(int(year), 4, 1) if season == "Spring" else date(int(year), 10, 1)
+
+
+past_by_semester = {}
+for idx in past_rows:
+    past_by_semester.setdefault(semester_label(row_dates[idx]), []).append(idx)
+current_schedule_dates = {d for d in row_dates.values() if d is not None}
+archive_labels = {tab.replace(" (archive)", ""): tab for tab in ARCHIVE_TABS}
+past_labels = sorted(set(archive_labels) | set(past_by_semester),
+                     key=semester_sort_key, reverse=True)
 
 with st.expander("Past schedules", expanded=False):
-    archive_labels = {tab.replace(" (archive)", ""): tab for tab in ARCHIVE_TABS}
-    if len(archive_labels) == 1:
-        archive_label = next(iter(archive_labels))
+    if not past_labels:
+        st.write("There are no past meetings yet.")
     else:
-        archive_label = st.selectbox("Choose a schedule:", list(archive_labels), key="archive_tab")
+        if len(past_labels) == 1:
+            past_label = past_labels[0]
+        else:
+            past_label = st.selectbox("Choose a schedule:", past_labels, key="archive_tab")
 
-    try:
-        archive_df = conn.read(worksheet=archive_labels[archive_label], ttl=600)
-        archive_df = archive_df.dropna(how='all')
-    except Exception:
-        archive_df = None
+        parts = []   # (rows, their dates)
+        if past_label in archive_labels:
+            try:
+                archive_df = conn.read(worksheet=archive_labels[past_label], ttl=600)
+                archive_df = archive_df.dropna(how='all')
+            except Exception:
+                archive_df = None
 
-    if archive_df is None or archive_df.empty:
-        st.write(f"The {archive_label} schedule could not be loaded.")
-    else:
-        st.markdown(f"**{archive_label}**")
-        st.table(styled_schedule(archive_df))
+            if archive_df is None or archive_df.empty:
+                st.write(f"The {past_label} schedule could not be loaded.")
+            else:
+                try:
+                    reference = semester_reference_date(past_label)
+                except ValueError:
+                    reference = current_date
+                archive_dates = infer_dates(archive_df["Date"].tolist(), reference)
+                # Keep only meetings that have passed. A date that is also in
+                # the current schedule is shown from there instead, since
+                # that is the version that has been kept up to date.
+                keep = [d is None or (d < current_date and d not in current_schedule_dates)
+                        for d in archive_dates]
+                parts.append((archive_df[keep],
+                              [d for d, k in zip(archive_dates, keep) if k]))
+
+        if past_label in past_by_semester:
+            idxs = past_by_semester[past_label]
+            parts.append((df.loc[idxs], [row_dates[i] for i in idxs]))
+
+        if parts:
+            past_df = pd.concat([rows for rows, _ in parts], ignore_index=True)
+            past_df["_date"] = [d for _, dates in parts for d in dates]
+            past_df = (past_df.sort_values("_date", kind="stable", na_position="last")
+                              .drop(columns="_date"))
+            if past_df.empty:
+                st.write(f"There are no past meetings in {past_label} yet.")
+            else:
+                st.markdown(f"**{past_label}**")
+                st.table(styled_schedule(past_df))
 
 # --- 7. PIs AND MEMBERS ---
 with st.expander("PIs and members", expanded=False):
