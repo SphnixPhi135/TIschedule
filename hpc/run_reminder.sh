@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Friday reminder runner for the HPC.
+# Runner for the HPC jobs: the Friday reminder, and (via run_notify.sh) the
+# change notices.
 #
 # Updates the code from GitHub, loads the mail settings, then runs
-# reminder.py. Any arguments (--dry-run, --test-to ADDRESS) are passed on.
-# Setup and scheduling: see hpc/README.md.
+# reminder.py (or $SCRIPT). Any arguments (--dry-run, --test-to ADDRESS) are
+# passed on. Setup and scheduling: see hpc/README.md.
 #
 # Settings that can be overridden from the environment:
 #   REPO_DIR        the clone of this repository   (default: this script's repo)
 #   TISCHEDULE_ENV  mail settings file             (default: ~/.config/tischedule/env)
 #   PYTHON          Python with pandas installed   (default: $REPO_DIR/.venv/bin/python)
 #   LOG             log file when not run by hand  (default: ~/tischedule-reminder.log)
+#   SCRIPT          script to run                  (default: reminder.py)
 
 set -uo pipefail
 
@@ -17,13 +19,14 @@ REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TISCHEDULE_ENV="${TISCHEDULE_ENV:-$HOME/.config/tischedule/env}"
 PYTHON="${PYTHON:-$REPO_DIR/.venv/bin/python}"
 LOG="${LOG:-$HOME/tischedule-reminder.log}"
+SCRIPT="${SCRIPT:-reminder.py}"
 
 # Run by hand: print to the terminal. Run by cron/scrontab: append to the log.
 if [ ! -t 1 ]; then
     exec >>"$LOG" 2>&1
 fi
 
-echo "=== $(date '+%Y-%m-%d %H:%M:%S') reminder run on $(hostname) ==="
+echo "=== $(date '+%Y-%m-%d %H:%M:%S') $SCRIPT run on $(hostname) ==="
 
 cd "$REPO_DIR" || { echo "ERROR: cannot enter $REPO_DIR"; exit 1; }
 
@@ -47,7 +50,7 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
-"$PYTHON" reminder.py "$@"
+"$PYTHON" "$SCRIPT" "$@"
 status=$?
 echo "=== finished with status $status ==="
 exit "$status"
