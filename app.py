@@ -87,6 +87,33 @@ def save_data(df):
     conn.update(worksheet="Schedule", data=df)
     st.session_state.df = df
 
+
+SCHEDULE_CHANGED = ("The schedule changed since you opened this page, so nothing was saved. "
+                    "Reload the page and try again.")
+
+
+def apply_changes(changes):
+    """Apply [(date, slot, expected_person, new_person)] to a fresh copy of the sheet.
+
+    The page keeps the schedule it loaded when it was opened. Saving that copy
+    would undo any edit made since, so re-read the sheet, check each slot
+    still holds who the page showed, and only then write. Returns False (and
+    saves nothing) if any slot changed meanwhile.
+    """
+    fresh = load_data()
+    dates = fresh["Date"].astype(str).str.strip()
+    edits = []
+    for date_str, slot, expected, new_person in changes:
+        rows = fresh.index[dates == date_str]
+        if len(rows) != 1 or str(fresh.at[rows[0], slot]).strip() != expected:
+            st.session_state.df = fresh
+            return False
+        edits.append((rows[0], slot, new_person))
+    for row, slot, new_person in edits:
+        fresh.at[row, slot] = new_person
+    save_data(fresh)
+    return True
+
 # --- EMAILS ---
 def _smtp_credentials():
     """Return (sender, password, reply_to) from Streamlit secrets, or None."""
@@ -355,41 +382,40 @@ with st.expander("Swap or reassign presentation slots", expanded=False):
 
                         if st.button("Confirm swap", type="primary"):
                             item_b = next(e for e in all_slot_entries if e["label"] == choice_b)
-                            
-                            # Execute Swap
-                            df.at[item_a["idx"], item_a["slot"]] = item_b["person"]
-                            df.at[item_b["idx"], item_b["slot"]] = item_a["person"]
-                            save_data(df)
-                            send_swap_email(item_a['person'], item_b['person'], item_a['date'], item_b['date'])
-                            
-                            st.success(f"Swapped **{item_a['person']}** and **{item_b['person']}** successfully! Email sent.")
-                            st.rerun()
+
+                            if apply_changes([
+                                (item_a["date"], item_a["slot"], item_a["person"], item_b["person"]),
+                                (item_b["date"], item_b["slot"], item_b["person"], item_a["person"]),
+                            ]):
+                                send_swap_email(item_a['person'], item_b['person'], item_a['date'], item_b['date'])
+                                st.success(f"Swapped **{item_a['person']}** and **{item_b['person']}** successfully! Email sent.")
+                                st.rerun()
+                            else:
+                                st.error(SCHEDULE_CHANGED)
 
                 # --- STEP 4b: Reassign Logic ---
                 elif action == "Reassign to someone else":
-                    # Build list of unscheduled members
-                    all_lab_members = []
-                    for members in PRESENTERS.values():
-                        all_lab_members.extend(members)
-                        
-                    unscheduled = [m for m in all_lab_members if m not in scheduled_people]
-                    unscheduled_sorted = sorted(unscheduled)
-                    
-                    if not unscheduled_sorted:
-                        st.warning("All lab members are currently scheduled.")
+                    # Anyone can take the slot, including people who already
+                    # have talks, except those already presenting that day.
+                    presenting_that_day = {e["person"] for e in all_slot_entries
+                                           if e["idx"] == item_a["idx"]}
+                    candidates = sorted({m for members in PRESENTERS.values() for m in members}
+                                        - presenting_that_day)
+
+                    if not candidates:
+                        st.warning("There is nobody else to reassign this slot to.")
                     else:
-                        choice_b = st.selectbox("4. Select the new presenter:", unscheduled_sorted)
+                        choice_b = st.selectbox("4. Select the new presenter:", candidates)
 
                         if st.button("Confirm reassignment", type="primary"):
                             new_person = choice_b
-                            
-                            # Execute Reassignment
-                            df.at[item_a["idx"], item_a["slot"]] = new_person
-                            save_data(df)
-                            send_replacement_email(item_a['person'], new_person, item_a['date'])
-                            
-                            st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
-                            st.rerun()
+
+                            if apply_changes([(item_a["date"], item_a["slot"], item_a["person"], new_person)]):
+                                send_replacement_email(item_a['person'], new_person, item_a['date'])
+                                st.success(f"Reassigned slot from **{item_a['person']}** to **{new_person}** successfully! Email sent.")
+                                st.rerun()
+                            else:
+                                st.error(SCHEDULE_CHANGED)
 
 # --- 4. ADD TO CALENDAR ---
 with st.expander("Add my presentations to my calendar", expanded=False):

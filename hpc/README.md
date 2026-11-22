@@ -138,3 +138,38 @@ something failed, and the lines above it say what.
 
 If worker 10 can't reach GitHub on a Friday, the log shows a warning and the
 reminders still go out with the last copy of the code.
+
+## Change notices (every 10 minutes)
+
+`notify_changes.py` emails people when their upcoming talks change: a swap or
+reassignment in the app, an edit made directly in the Google Sheet, or a
+meeting marked as cancelled. It uses the same mail settings as the reminders.
+
+It compares the sheet with the copy it last notified about, kept in
+`~/.local/state/tischedule/`. A change is sent only once it has looked the same
+on two runs in a row, so a sheet being edited by hand doesn't trigger
+half-finished emails; with a 10-minute schedule, emails go out 10 to 20
+minutes after a change.
+
+Test it (nothing goes to members):
+
+```bash
+~/TIschedule/hpc/run_notify.sh              # first run: records the schedule, sends nothing
+~/TIschedule/hpc/run_notify.sh --dry-run    # shows what it would send for any change since
+~/TIschedule/hpc/run_notify.sh --test-to v.a.melogallegos@amsterdamumc.nl
+```
+
+Then add to the crontab on worker 10 (`crontab -e`):
+
+```
+*/10 * * * * $HOME/TIschedule/hpc/run_notify.sh
+```
+
+Runs write to `~/tischedule-notify.log`. If more than 8 people would get an
+email at once (for example when a new semester's schedule is pasted in),
+nothing is sent and the run ends with status 1. Check the change, then record
+it without emailing anyone:
+
+```bash
+~/TIschedule/hpc/run_notify.sh --accept
+```
