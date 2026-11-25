@@ -25,8 +25,13 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
-from mailer import (SCHEDULE_URL, SMTP_HOST, SMTP_PORT, build_message,
-                    join_names, send_messages)
+from mailer import SCHEDULE_URL, SMTP_HOST, SMTP_PORT, build_message, send_messages
+
+ONEVIEW_NOTE = (
+    "The computer in the meeting room doesn't have OneView, so please make "
+    "sure your presentation is available online, for example as an attachment "
+    "in your email or in a SharePoint folder, so you can open it easily there."
+)
 
 # Your specific Google Sheet ID
 SHEET_ID = "1MkHviO7CsmPR65rpV3zT0wSRbVVomsc9j9vlmzc9JdE"
@@ -103,17 +108,11 @@ def main():
 
     messages = []
     for name, address in recipients:
-        others = [p for p in unique_presenters if p != name]
-        if others:
-            co_text = f"You are presenting alongside {join_names(others)}."
-        else:
-            co_text = "You are the only presenter scheduled for that meeting."
-
         text_body = (
             f"Hello {name},\n\n"
             f"This is a reminder that you are scheduled to present at the "
             f"Tumor Immunology meeting on {meeting_date}.\n\n"
-            f"{co_text}\n\n"
+            f"{ONEVIEW_NOTE}\n\n"
             f"The full schedule is here:\n"
             f"{SCHEDULE_URL}\n\n"
             f"Best,\n"
@@ -126,7 +125,7 @@ def main():
     <p>Hello {name},</p>
     <p>This is a reminder that you are scheduled to present at the
        Tumor Immunology meeting on <b>{meeting_date}</b>.</p>
-    <p>{co_text}</p>
+    <p>{ONEVIEW_NOTE}</p>
     <p>The full schedule is here:<br>
        <a href="{SCHEDULE_URL}">{SCHEDULE_URL}</a></p>
     <p>Best,<br>Vinicio</p>
